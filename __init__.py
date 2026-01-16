@@ -3,24 +3,23 @@
 ComfyUI-LK-Universal-Pro 插件
 围绕 Gemini API 深度开发的 ComfyUI 节点集合
 
-作者: LK Studio
-版本: 2.1.0
+作者: CCUT_LK Studio
+版本: 2.2.0
 许可证: MIT
 仓库: https://github.com/hdzwzqbxlk/ComfyUI-LK-Universal-Pro
 """
 
-__version__ = "2.1.0"
-__author__ = "LK Studio"
+__version__ = "2.2.0"
+__author__ = "CCUT_LK Studio"
 __license__ = "MIT"
 
-# 导入所有节点
 from .nodes.text_generation import LK_Gemini_Text, LK_Gemini_Chat
 from .nodes.image_generation import LK_Gemini_ImageGen, LK_Gemini_ImageEdit, LK_Gemini_Imagen
 from .nodes.video_generation import LK_Gemini_VideoGen, LK_Gemini_Image2Video
 from .nodes.vision_understanding import LK_Gemini_VisionAnalyze, LK_Gemini_DocumentProcess
 from .nodes.advanced_features import LK_Gemini_StructuredOutput, LK_Gemini_PromptOptimizer, LK_Gemini_Thinking
 from .nodes.utility_nodes import LK_Gemini_APIConfig, LK_Gemini_ModelInfo, LK_Gemini_PromptBuilder
-from .nodes.nano_banana import LK_NanoBanana, LK_NanoBananaPro
+from .nodes.nano_banana import LK_NanoBanana, LK_NanoBananaPro, LK_ImageToPrompt
 
 NODE_CLASS_MAPPINGS = {
     "LK_Gemini_Text": LK_Gemini_Text,
@@ -40,6 +39,7 @@ NODE_CLASS_MAPPINGS = {
     "LK_Gemini_PromptBuilder": LK_Gemini_PromptBuilder,
     "LK_NanoBanana": LK_NanoBanana,
     "LK_NanoBananaPro": LK_NanoBananaPro,
+    "LK_ImageToPrompt": LK_ImageToPrompt,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -60,6 +60,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "LK_Gemini_PromptBuilder": "🔧 LK 提示词构建器",
     "LK_NanoBanana": "🍌 LK Nano Banana (Google Gemini 图像)",
     "LK_NanoBananaPro": "🍌 LK Nano Banana Pro (Google Gemini 图像)",
+    "LK_ImageToPrompt": "🔄 LK 图像反推提示词",
 }
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]
