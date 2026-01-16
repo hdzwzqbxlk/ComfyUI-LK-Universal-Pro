@@ -7,7 +7,7 @@ from .video_generation import LK_Gemini_VideoGen, LK_Gemini_Image2Video
 from .vision_understanding import LK_Gemini_VisionAnalyze, LK_Gemini_DocumentProcess
 from .advanced_features import LK_Gemini_StructuredOutput, LK_Gemini_PromptOptimizer
 from .utility_nodes import LK_Gemini_APIConfig, LK_Gemini_ModelInfo
-from .nano_banana import LK_NanoBanana, LK_NanoBananaPro
+from .nano_banana import LK_NanoBanana, LK_NanoBananaPro, LK_ImageToPrompt
 
 __all__ = [
     'LK_Gemini_Text', 'LK_Gemini_Chat',
@@ -16,5 +16,5 @@ __all__ = [
     'LK_Gemini_VisionAnalyze', 'LK_Gemini_DocumentProcess',
     'LK_Gemini_StructuredOutput', 'LK_Gemini_PromptOptimizer',
     'LK_Gemini_APIConfig', 'LK_Gemini_ModelInfo',
-    'LK_NanoBanana', 'LK_NanoBananaPro'
+    'LK_NanoBanana', 'LK_NanoBananaPro', 'LK_ImageToPrompt'
 ]
