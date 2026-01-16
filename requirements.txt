@@ -1,0 +1,18 @@
+# ComfyUI-LK-Universal-Pro 依赖
+# Gemini API 深度集成插件
+
+# Google Gemini API 客户端
+google-genai>=1.0.0
+
+# 图像处理
+Pillow>=9.0.0
+numpy>=1.21.0
+
+# HTTP 请求
+requests>=2.25.0
+
+# PyTorch (ComfyUI 已包含，此处仅作文档说明)
+# torch>=1.9.0
+
+# 可选依赖 - 视频处理
+# opencv-python>=4.5.0
