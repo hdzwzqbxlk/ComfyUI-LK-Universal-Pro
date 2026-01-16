@@ -26,8 +26,6 @@ REVERSE_PROMPT_SYSTEM = """You are an expert at analyzing images and generating 
 When given an image, provide a comprehensive description that can be used to recreate similar images.
 Include details about: subject, composition, lighting, colors, style, mood, and technical aspects."""
 
-CATEGORY_PREFIX = "🔺CCUT_LK"
-
 
 class LK_NanoBanana:
     """🍌 LK Nano Banana (Google Gemini 图像) - gemini-2.5-flash-image"""
@@ -50,7 +48,7 @@ class LK_NanoBanana:
     RETURN_TYPES = ("IMAGE", "STRING")
     RETURN_NAMES = ("图像", "文本")
     FUNCTION = "generate"
-    CATEGORY = f"{CATEGORY_PREFIX}/Gemini/NanoBanana"
+    CATEGORY = "LK_Studio/Gemini/图像"
 
     def generate(self, prompt, model, seed, seed_control, aspect_ratio, response_modalities, api_key,
                  image=None, file=None, system_prompt=None):
@@ -100,7 +98,7 @@ class LK_NanoBananaPro:
     RETURN_TYPES = ("IMAGE", "STRING")
     RETURN_NAMES = ("图像", "文本")
     FUNCTION = "generate"
-    CATEGORY = f"{CATEGORY_PREFIX}/Gemini/NanoBanana"
+    CATEGORY = "LK_Studio/Gemini/图像"
 
     def generate(self, prompt, model, seed, seed_control, aspect_ratio, resolution, response_modalities, api_key,
                  image=None, file=None, system_prompt=None):
@@ -146,7 +144,7 @@ class LK_ImageToPrompt:
     RETURN_TYPES = ("STRING", "STRING")
     RETURN_NAMES = ("正向提示词", "负向提示词")
     FUNCTION = "analyze"
-    CATEGORY = f"{CATEGORY_PREFIX}/Gemini/NanoBanana"
+    CATEGORY = "LK_Studio/Gemini/图像"
 
     def analyze(self, image, model, output_format, language, api_key, file=None, additional_instructions=""):
         if not api_key: return ("错误: 请提供有效的 API 密钥", "")
