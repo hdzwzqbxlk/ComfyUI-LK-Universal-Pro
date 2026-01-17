@@ -19,7 +19,7 @@ from .nodes.video_generation import LK_Gemini_VideoGen, LK_Gemini_Image2Video
 from .nodes.vision_understanding import LK_Gemini_VisionAnalyze, LK_Gemini_DocumentProcess
 from .nodes.advanced_features import LK_Gemini_StructuredOutput, LK_Gemini_PromptOptimizer, LK_Gemini_Thinking
 from .nodes.utility_nodes import LK_Gemini_APIConfig, LK_Gemini_ModelInfo, LK_Gemini_PromptBuilder
-from .nodes.nano_banana import LK_NanoBanana, LK_NanoBananaPro, LK_ImageToPrompt
+from .nodes.nano_banana import LK_NanoBanana, LK_NanoBananaPro, LK_NanoBananaMulti, LK_ImageToPrompt
 
 NODE_CLASS_MAPPINGS = {
     "LK_Gemini_Text": LK_Gemini_Text,
@@ -39,6 +39,7 @@ NODE_CLASS_MAPPINGS = {
     "LK_Gemini_PromptBuilder": LK_Gemini_PromptBuilder,
     "LK_NanoBanana": LK_NanoBanana,
     "LK_NanoBananaPro": LK_NanoBananaPro,
+    "LK_NanoBananaMulti": LK_NanoBananaMulti,
     "LK_ImageToPrompt": LK_ImageToPrompt,
 }
 
@@ -60,6 +61,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "LK_Gemini_PromptBuilder": "🔧 LK 提示词构建器",
     "LK_NanoBanana": "🍌 LK Nano Banana (Google Gemini 图像)",
     "LK_NanoBananaPro": "🍌 LK Nano Banana Pro (Google Gemini 图像)",
+    "LK_NanoBananaMulti": "🍌 LK Nano Banana 多图 (Google Gemini 图像)",
     "LK_ImageToPrompt": "🔄 LK 图像反推提示词",
 }
 

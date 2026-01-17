@@ -180,3 +180,82 @@ Output JSON: {{"positive_prompt": "...", "negative_prompt": "..."}}"""
             return (result, "")
         except GeminiAPIError as e: return (f"API 错误: {str(e)}", "")
         except Exception as e: return (f"错误: {str(e)}", "")
+
+
+class LK_NanoBananaMulti:
+    """
+    🍌 LK Nano Banana 多图 (Google Gemini 图像)
+    支持最多 8 张图片同时输入，使用 gemini-3-pro-image-preview 进行多图融合生成
+    
+    使用场景：
+    - 多角色合成：将多个角色图合并到同一场景
+    - 风格迁移：使用多张风格参考图
+    - 姿态/表情转移：一张角色图 + 一张姿态参考图
+    - 多视角融合：从多个角度的照片生成新视角
+    """
+    
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "prompt": ("STRING", {"multiline": True, "placeholder": "输入提示词，描述如何结合多张输入图像...", "dynamicPrompts": True}),
+            "model": (["gemini-3-pro-image-preview", "gemini-2.5-pro-image"], {"default": "gemini-3-pro-image-preview"}),
+            "seed": ("INT", {"default": 12345, "min": 0, "max": 0xffffffffffffffff}),
+            "seed_control": (["fixed", "randomize", "increment"], {"default": "fixed"}),
+            "aspect_ratio": (["16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3"], {"default": "16:9"}),
+            "resolution": (["1K", "2K", "4K"], {"default": "2K"}),
+            "response_modalities": (["IMAGE+TEXT", "IMAGE_ONLY"], {"default": "IMAGE+TEXT"}),
+            "api_key": ("STRING", {"default": "", "placeholder": "输入 Gemini API 密钥"})
+        }, "optional": {
+            "image_1": ("IMAGE",),
+            "image_2": ("IMAGE",),
+            "image_3": ("IMAGE",),
+            "image_4": ("IMAGE",),
+            "image_5": ("IMAGE",),
+            "image_6": ("IMAGE",),
+            "image_7": ("IMAGE",),
+            "image_8": ("IMAGE",),
+            "system_prompt": ("STRING", {"multiline": True, "default": DEFAULT_SYSTEM_PROMPT})
+        }}
+    RETURN_TYPES = ("IMAGE", "STRING")
+    RETURN_NAMES = ("图像", "文本")
+    FUNCTION = "generate"
+    CATEGORY = "LK_Studio/Gemini/图像"
+
+    def generate(self, prompt, model, seed, seed_control, aspect_ratio, resolution, response_modalities, api_key,
+                 image_1=None, image_2=None, image_3=None, image_4=None,
+                 image_5=None, image_6=None, image_7=None, image_8=None, system_prompt=None):
+        if not api_key: return (create_empty_image(), "错误: 请提供有效的 API 密钥")
+        
+        # 收集所有有效图像
+        input_images = [image_1, image_2, image_3, image_4, image_5, image_6, image_7, image_8]
+        valid_images = [img for img in input_images if img is not None]
+        
+        if not valid_images:
+            return (create_empty_image(), "警告: 至少需要输入一张图像")
+        
+        img_count = len(valid_images)
+        actual_seed = random.randint(0, 0xffffffffffffffff) if seed_control == "randomize" else (seed + 1 if seed_control == "increment" else seed)
+        
+        try:
+            client = GeminiAPIClient(api_key, timeout=240)  # 多图处理需要更长超时
+            parts = []
+            
+            # 按顺序添加所有输入图像
+            for image in valid_images:
+                parts.append({"inlineData": {"mimeType": "image/png", "data": pil_to_base64(tensor_to_pil(image))}})
+            
+            parts.append({"text": prompt})
+            modalities = ["Image"] if response_modalities == "IMAGE_ONLY" else ["Text", "Image"]
+            img_config = {"aspectRatio": aspect_ratio, "imageSize": resolution}
+            
+            response = client.generate_content(model=model, contents=[{"parts": parts}],
+                system_instruction=system_prompt or DEFAULT_SYSTEM_PROMPT, response_modalities=modalities,
+                image_config=img_config)
+            
+            images = client.parse_image_response(response)
+            text = client.parse_text_response(response)
+            
+            if images: return (pil_to_tensor(bytes_to_pil(images[0])), text or f"生成成功 (seed: {actual_seed}, {resolution}, 输入: {img_count}张)")
+            return (create_empty_image(), text or "未能生成图像")
+        except GeminiAPIError as e: return (create_empty_image(), f"API 错误: {str(e)}")
+        except Exception as e: return (create_empty_image(), f"错误: {str(e)}")

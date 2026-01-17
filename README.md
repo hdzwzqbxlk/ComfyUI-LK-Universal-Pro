@@ -54,13 +54,14 @@ LK_Studio/
 | :--- | :--- | :--- | :--- |
 | **Text** | `LK_Gemini_Text` | 🌟 LK Gemini 文本生成 | Standard text generation with model selection. |
 | | `LK_Gemini_Chat` | 💬 LK Gemini 多轮对话 | Multi-turn conversation with context history. |
-| **Image** | `LK_Gemini_ImageGen` | 🎨 LK Gemini 图像生成 | Native Gemini image generation. |
+| **Image** | `LK_Gemini_ImageGen` | 🎨 LK Gemini 图像生成 (Nano Banana) | Native Gemini image generation. |
 | | `LK_Gemini_ImageEdit` | ✏️ LK Gemini 图像编辑 | Edit existing images via text instructions. |
 | | `LK_Gemini_Imagen` | 🖼️ LK Imagen 图像生成 | High-fidelity generation using Imagen 3 models. |
 | | `LK_NanoBanana` | 🍌 LK Nano Banana | Flash image generation (gemini-2.5-flash-image). |
 | | `LK_NanoBananaPro` | 🍌 LK Nano Banana Pro | Pro image generation (gemini-3-pro-image-preview). |
+| | `LK_NanoBananaMulti` | 🍌 LK Nano Banana 多图 | Multi-image blending & style transfer (up to 8 inputs). |
 | | `LK_ImageToPrompt` | 🔄 LK 图像反推提示词 | Generate prompts from images for recreation. |
-| **Video** | `LK_Gemini_VideoGen` | 🎬 LK Gemini 视频生成 | Text-to-Video generation using Veo 3.1. |
+| **Video** | `LK_Gemini_VideoGen` | 🎬 LK Gemini 视频生成 (Veo 3.1) | Text-to-Video generation using Veo 3.1. |
 | | `LK_Gemini_Image2Video` | 📹 LK Gemini 图生视频 | Transform source images into video sequences. |
 | **Vision** | `LK_Gemini_VisionAnalyze`| 👁️ LK Gemini 视觉分析 | Analyze images for descriptions, tagging. |
 | | `LK_Gemini_DocumentProcess` | 📄 LK Gemini 文档处理 | Extract and process text from Documents/PDFs. |
@@ -140,13 +141,14 @@ LK_Studio/
 | :--- | :--- | :--- | :--- |
 | **文本** | `LK_Gemini_Text` | 🌟 LK Gemini 文本生成 | 标准文本生成，支持模型选择。 |
 | | `LK_Gemini_Chat` | 💬 LK Gemini 多轮对话 | 支持上下文历史的多轮对话。 |
-| **图像** | `LK_Gemini_ImageGen` | 🎨 LK Gemini 图像生成 | Gemini 原生绘图能力。 |
+| **图像** | `LK_Gemini_ImageGen` | 🎨 LK Gemini 图像生成 (Nano Banana) | Gemini 原生绘图能力。 |
 | | `LK_Gemini_ImageEdit` | ✏️ LK Gemini 图像编辑 | 基于文本指令编辑图像。 |
 | | `LK_Gemini_Imagen` | 🖼️ LK Imagen 图像生成 | Imagen 3 高保真图像生成。 |
 | | `LK_NanoBanana` | 🍌 LK Nano Banana | Flash 图像生成 (gemini-2.5-flash-image)。 |
 | | `LK_NanoBananaPro` | 🍌 LK Nano Banana Pro | Pro 高质量图像生成 (gemini-3-pro-image-preview)。 |
+| | `LK_NanoBananaMulti` | 🍌 LK Nano Banana 多图 | 多图融合、风格迁移 (支持8图输入)。 |
 | | `LK_ImageToPrompt` | 🔄 LK 图像反推提示词 | 分析图像生成提示词，用于风格复刻。 |
-| **视频** | `LK_Gemini_VideoGen` | 🎬 LK Gemini 视频生成 | Veo 3.1 文生视频。 |
+| **视频** | `LK_Gemini_VideoGen` | 🎬 LK Gemini 视频生成 (Veo 3.1) | Veo 3.1 文生视频。 |
 | | `LK_Gemini_Image2Video` | 📹 LK Gemini 图生视频 | 静态图像转动态视频。 |
 | **视觉** | `LK_Gemini_VisionAnalyze`| 👁️ LK Gemini 视觉分析 | 图像描述、打标、分析。 |
 | | `LK_Gemini_DocumentProcess` | 📄 LK Gemini 文档处理 | PDF/文档图片解析提取。 |
