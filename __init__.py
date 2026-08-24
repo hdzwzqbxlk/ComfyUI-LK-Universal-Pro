@@ -9,7 +9,7 @@ ComfyUI-LK-Universal-Pro 插件
 仓库: https://github.com/hdzwzqbxlk/ComfyUI-LK-Universal-Pro
 """
 
-__version__ = "2.2.0"
+__version__ = "2.3.1"
 __author__ = "CCUT_LK Studio"
 __license__ = "MIT"
 
@@ -20,6 +20,7 @@ from .nodes.vision_understanding import LK_Gemini_VisionAnalyze, LK_Gemini_Docum
 from .nodes.advanced_features import LK_Gemini_StructuredOutput, LK_Gemini_PromptOptimizer, LK_Gemini_Thinking
 from .nodes.utility_nodes import LK_Gemini_APIConfig, LK_Gemini_ModelInfo, LK_Gemini_PromptBuilder
 from .nodes.nano_banana import LK_NanoBanana, LK_NanoBananaPro, LK_NanoBananaMulti, LK_ImageToPrompt
+from .nodes.universal_nodes import LK_Universal_APIConfig, LK_Universal_ModelFetcher, LK_Universal_Chat, LK_Universal_Structured
 
 NODE_CLASS_MAPPINGS = {
     "LK_Gemini_Text": LK_Gemini_Text,
@@ -41,6 +42,10 @@ NODE_CLASS_MAPPINGS = {
     "LK_NanoBananaPro": LK_NanoBananaPro,
     "LK_NanoBananaMulti": LK_NanoBananaMulti,
     "LK_ImageToPrompt": LK_ImageToPrompt,
+    "LK_Universal_APIConfig": LK_Universal_APIConfig,
+    "LK_Universal_ModelFetcher": LK_Universal_ModelFetcher,
+    "LK_Universal_Chat": LK_Universal_Chat,
+    "LK_Universal_Structured": LK_Universal_Structured,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -63,6 +68,10 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "LK_NanoBananaPro": "🍌 LK Nano Banana Pro (Google Gemini 图像)",
     "LK_NanoBananaMulti": "🍌 LK Nano Banana 多图 (Google Gemini 图像)",
     "LK_ImageToPrompt": "🔄 LK 图像反推提示词",
+    "LK_Universal_APIConfig": "🌐 LK 通用 API 配置",
+    "LK_Universal_ModelFetcher": "📡 LK 通用 模型获取 (自动拉取)",
+    "LK_Universal_Chat": "💬 LK 通用 对话 (文本+视觉)",
+    "LK_Universal_Structured": "📋 LK 通用 结构化输出",
 }
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]

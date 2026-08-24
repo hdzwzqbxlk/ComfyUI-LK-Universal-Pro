@@ -2,6 +2,33 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
+## [2.3.0] - 2026-08-24
+
+### 🌐 新增：通用 API 兼容层（Universal API）
+
+参考 ComfyUI-AI-CustomURL、ComfyUI-OpenAI-Compat-LLM-Node 等开源插件，
+将插件从「仅 Gemini」扩展为「兼容任意 OpenAI 兼容自定义 API 接口」。
+
+- **新增通用节点**（`LK_Studio/通用 API/` 分类）
+  - `LK_Universal_APIConfig` — 厂商预设（OpenAI/Ollama/OpenRouter/DeepSeek/Together/火山方舟/硅基流动/自定义）+ 自定义 base_url 统一配置
+  - `LK_Universal_ModelFetcher` — **自动拉取**指定端点的 `/models` 模型列表并写入全局缓存（含 Ollama 原生 `/api/tags` 兜底）
+  - `LK_Universal_Chat` — 通用对话，支持文本 + 多模态（图像 base64 注入），模型下拉框读取缓存
+  - `LK_Universal_Structured` — 通用结构化 JSON 输出（`response_format=json_object`，并对不支持的端点自动降级）
+- **新增 `utils/provider_registry.py`** — 厂商预设表 + 进程级全局模型缓存 `UNIVERSAL_MODEL_CACHE`，对话节点下拉框刷新即读取
+- **扩展 `utils/api_client.py`** — 新增 `UniversalAPIClient`（Bearer 鉴权、chat/completions、images/generations、/models 拉取、重试/超时、思考链解析）
+
+### 🔧 变更
+- 移除未实际使用的 `google-genai` 依赖（改为直接调用官方 REST API），降低耦合、便于对接多端点
+- 版本号 2.0.0 → 2.3.0（pyproject / README / __init__ 同步）
+
+## [2.3.1] - 2026-08-24（补强）
+
+### ✨ 新增（借鉴 ComfyUI-LLMs-Toolkit / ComfyUI-LLM-Chat）
+- **国产厂商深度覆盖**：`provider_registry` 预设由 7 家扩充至 14 家，新增 智谱 GLM、Moonshot(Kimi)、百川、MiniMax、阶跃、讯飞星火、商汤 SenseChat
+- **Smart 故障转移**：`UniversalAPIClient` 支持 `fallback_base_url/fallback_api_key`，主端点重试失败后自动回退备用端点（如云端→本地 Ollama）；`LK_Universal_APIConfig` 与 `LK_Universal_Chat` 新增备用端点配置项，回退成功时在回复标注 `[已回退至备用端点]`
+
+---
+
 ## [2.0.0] - 2026-01-16
 
 ### 🎉 重大更新

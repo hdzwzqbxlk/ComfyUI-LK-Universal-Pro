@@ -1,13 +1,13 @@
 [project]
 name = "ComfyUI-LK-Universal-Pro"
-version = "2.0.0"
-description = "围绕 Gemini API 深度开发的 ComfyUI 节点集合"
+version = "2.3.1"
+description = "ComfyUI 通用 AI 节点集合：深度集成 Gemini，并兼容任意 OpenAI 兼容自定义 API 接口"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
     {name = "LK Studio"}
 ]
-keywords = ["comfyui", "gemini", "ai", "image-generation", "video-generation"]
+keywords = ["comfyui", "gemini", "openai", "llm", "ai", "image-generation", "video-generation", "universal-api"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -19,7 +19,6 @@ classifiers = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "google-genai>=1.0.0",
     "Pillow>=9.0.0",
     "numpy>=1.21.0",
     "requests>=2.25.0",

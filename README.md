@@ -159,6 +159,30 @@ LK_Studio/
 | | `LK_Gemini_ModelInfo` | 📊 LK Gemini 模型信息 | 模型列表及配额查询。 |
 | | `LK_Gemini_PromptBuilder` | 🔧 LK 提示词构建器 | 辅助构建提示词模板。 |
 
+### 🌐 通用 API 节点（适配任意 OpenAI 兼容自定义接口）
+
+除 Gemini 专属节点外，本插件内置一套**通用 API 节点**，可对接任意遵循 OpenAI 协议的端点（OpenAI / Ollama / OpenRouter / DeepSeek / 火山方舟 / 硅基流动 / 任意自定义 URL）。
+
+| 类别 | 节点类名 | 显示名称 | 功能描述 |
+| :--- | :--- | :--- | :--- |
+| **工具** | `LK_Universal_APIConfig` | 🌐 LK 通用 API 配置 | 选择厂商预设或自定义 base_url，统一输出连接参数。 |
+| | `LK_Universal_ModelFetcher` | 📡 LK 通用 模型获取 | **自动拉取**指定端点的模型列表并写入缓存。 |
+| **文本** | `LK_Universal_Chat` | 💬 LK 通用 对话 | 文本 + 多模态（图像）对话，模型下拉框读取缓存。 |
+| **高级** | `LK_Universal_Structured` | 📋 LK 通用 结构化输出 | 强制 JSON 输出的结构化生成。 |
+
+#### 典型工作流
+
+1. 拖入 **🌐 LK 通用 API 配置**，选择厂商（如 `Ollama (本地)`）或填自定义 `base_url`。
+2. 拖入 **📡 LK 通用 模型获取**，连接上一步的 `Base URL` / `API 密钥`，执行后自动拉取模型。
+3. 在 **💬 LK 通用 对话** 节点上点击模型下拉框的刷新按钮，即可看到刚拉取的模型列表。
+4. 输入提示词（可接入图像做多模态分析），开始使用。
+
+> 支持的内置厂商预设：`OpenAI`、`Ollama (本地)`、`OpenRouter`、`DeepSeek`、`Together.ai`、`Venus (火山方舟)`、`硅基流动 (SiliconFlow)`、`智谱 GLM`、`Moonshot (Kimi)`、`百川`、`MiniMax`、`阶跃`、`讯飞星火`、`商汤 SenseChat`、`自定义 (Custom)`（共 14 家预设 + 自定义）。
+
+#### Smart 故障转移（主备回退）
+
+`LK_Universal_APIConfig` 与 `LK_Universal_Chat` 支持配置**备用端点**（如主用云端 API、备用本地 Ollama）。当主端点在重试后仍失败（超时 / 连接错误），客户端自动回退到备用端点完成请求，并在回复前标注 `[已回退至备用端点]`，保障工作流不中断。
+
 ### 📦 安装说明
 
 1.  **克隆仓库**
