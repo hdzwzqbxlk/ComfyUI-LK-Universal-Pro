@@ -2,6 +2,30 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
+## [2.5.0] - 2026-08-25
+
+### ♻️ 重构：移除 Gemini 专项体系，统一为通用节点并合并精简
+
+- **移除 Gemini 专项节点（18 个）**：删除 `text_generation.py` / `image_generation.py` / `video_generation.py` / `vision_understanding.py` / `advanced_features.py` / `utility_nodes.py` / `nano_banana.py` 共 7 个文件，以及 `__init__.py` 中全部 `LK_Gemini_*` / `LK_NanoBanana*` / `LK_ImageToPrompt` 注册；`utils/api_client.py` 中 Gemini 专属的 `GeminiAPIClient` 与 `GEMINI_*` / `IMAGEN_*` 常量一并移除。所有能力由 `UniversalAPIClient`（OpenAI 兼容）统一承接，彻底消除「Gemini 硬编码端点」与「通用节点」两套并行体系。
+- **合并通用节点 15 → 11**：
+  - `LK_Universal_TextGen` 并入 `LK_Universal_Chat`（history 可选，空 history 即单轮）
+  - `LK_Universal_Session` 移除（历史裁剪/合并可由 Chat 历史链路在下游处理；若需清空可用空 history）
+  - `LK_Universal_VideoGen` 新增可选 `image` 输入，覆盖图生视频（透传首帧/参考图，端点支持时生效）
+  - `LK_Universal_Structured` 与 `LK_Universal_ToolUse` 合并为 `LK_Universal_Advanced`，用 `mode` 切换「结构化输出 / 工具调用」
+- 版本 2.4.1 → 2.5.0（MINOR：架构级重构，移除专项能力并合并节点）
+
+## [2.4.1] - 2026-08-25
+
+### 🐛 修复：通用 API 节点的 `model` 字段无法按端点选择
+
+v2.4.0 交付的 `model` 下拉框只展示 14 家厂商预设模型的并集（gpt-4o / dall-e-3 / llava / ...），而不是节点自己 `base_url` 的真实模型，导致 `token.s...` 这类自定义/中转端点选不到真实模型。本补丁根因级修复：
+
+- **新增 `web/lk_universal_models.js` 前端扩展**：节点创建 / `base_url` / `api_key` 变化时，自动 POST `/lk_universal/fetch_models` 拉取该端点的 `/models` 列表，动态填充 `model` 下拉框（combo `options.values` 实时更新；保留当前选中值若仍在列表内）。失败时静默回退，不破坏既有下拉。
+- **新增 `__init__.py` 服务端代理路由 `POST /lk_universal/fetch_models`**：接收 `{base_url, api_key, filter_keyword?}`，调用 `UniversalAPIClient.list_models()`，返回 `{ok, models}`，并把结果写入全局 `UNIVERSAL_MODEL_CACHE`（供执行时校验使用）。
+- **新增 `WEB_DIRECTORY = .../web`**：注册 ComfyUI 前端扩展加载路径。
+- **执行时硬校验**（`_validate_model`）：每个模型类节点在创建 client 之后立即校验 —— 空模型直接报错；若全局缓存非空且所选 `model` 不在已拉取列表中（下拉未刷新 / 手动输入），抛出 `UniversalAPIError` 并由现有 `except` 分支转换为明确报错（如 `API 错误: 模型「xxx」不在已拉取列表中…`），避免用错模型静默失败。共覆盖 9 个模型类节点（TextGen / Chat / ImageGen / ImageEdit / VideoGen / Vision / Structured / ToolUse / BatchChat）。
+- 版本号 2.4.0 → 2.4.1（PATCH：bug 修复 / 小幅体验优化，不升 MINOR/MAJOR）
+
 ## [2.4.0] - 2026-08-25
 
 ### ✨ 重构：通用 API 节点按 6 大类铺满（对标 Gemini 颗粒度）

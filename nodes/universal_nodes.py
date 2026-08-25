@@ -3,15 +3,14 @@
 通用 API 节点（Universal Nodes）
 
 面向「任意 OpenAI 兼容 API 接口」的通用能力，配合 utils/provider_registry 的
-全局模型缓存实现「自动拉取模型列表」。
+全局模型缓存实现「自动拉取模型列表」。节点按 6 大类组织：
 
-分类（与 Gemini 系列节点对齐颗粒度）：
   工具  (LK_Studio/通用 API/工具)  : APIConfig / ModelFetcher / HealthCheck / ModelCompare
-  文本  (LK_Studio/通用 API/文本)  : TextGen / Chat(多轮) / Session(会话管理)
+  文本  (LK_Studio/通用 API/文本)  : Chat(单轮/多轮，history 可选)
   图像  (LK_Studio/通用 API/图像)  : ImageGen / ImageEdit
-  视频  (LK_Studio/通用 API/视频)  : VideoGen
+  视频  (LK_Studio/通用 API/视频)  : VideoGen(文生视频 / 图生视频)
   视觉  (LK_Studio/通用 API/视觉)  : Vision(多图理解)
-  高级  (LK_Studio/通用 API/高级)  : Structured / ToolUse / BatchChat / TokenEstimate
+  高级  (LK_Studio/通用 API/高级)  : Advanced(结构化/工具调用) / BatchChat / TokenEstimate
 
 模型下拉框选项来自 UNIVERSAL_MODEL_CACHE，用户在 ModelFetcher 拉取成功后
 点击 ComfyUI 节点上的刷新按钮即可看到最新模型。
@@ -58,6 +57,25 @@ def _load_history(history_str: str) -> List[dict]:
         return hist if isinstance(hist, list) else []
     except Exception:
         return []
+
+
+def _validate_model(model: str, base_url: str) -> None:
+    """执行时校验模型：空模型直接报错；已拉取过列表则要求模型在列表中，否则明确报错。
+
+    说明：下拉框由节点自建时按 base_url 自动拉取 /models 填充，正常选择必在列表内。
+    仅当缓存非空而所选模型不在其中（下拉未刷新 / 手动输入）时才拦截，避免误伤自定义命名端点。
+    """
+    m = str(model or "").strip()
+    if not m:
+        raise UniversalAPIError(
+            "未指定模型：请在 model 下拉框选择一个模型（先在节点上拉取 /models）"
+        )
+    cached = get_cached_models()
+    if cached and m not in cached:
+        raise UniversalAPIError(
+            f"模型「{m}」不在已拉取列表中（共 {len(cached)} 个）。"
+            f"下拉可能使用了旧缓存——请在节点上重新拉取 /models 后再选。"
+        )
 
 
 def _save_history(messages: List[dict], limit: int = 20) -> str:
@@ -255,64 +273,13 @@ class LK_Universal_ModelCompare:
 
 
 # ===========================================================================
-# 文本类
+# 文本/对话（单轮/多轮统一）
 # ===========================================================================
-class LK_Universal_TextGen:
-    """通用文生文（单轮）：不含历史，最轻量的文本生成入口。"""
-
-    @classmethod
-    def INPUT_TYPES(cls):
-        models = get_cached_models()
-        return {"required": {
-            "prompt": ("STRING", {"multiline": True, "placeholder": "输入提示词..."}),
-            "model": (models, {"default": models[0] if models else "gpt-4o"}),
-            "base_url": ("STRING", {"default": "https://api.openai.com/v1"}),
-            "api_key": ("STRING", {"default": ""}),
-        }, "optional": {
-            "system_instruction": ("STRING", {"multiline": True, "default": ""}),
-            "temperature": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.1}),
-            "max_tokens": ("INT", {"default": 2048, "min": 1, "max": 65536, "step": 256}),
-            "top_p": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.05}),
-            "timeout": ("INT", {"default": 120, "min": 10, "max": 600, "step": 10}),
-            "fallback_base_url": ("STRING", {"default": "", "placeholder": "备用端点 base_url（主端点失败自动回退）"}),
-            "fallback_api_key": ("STRING", {"default": "", "placeholder": "备用端点密钥（留空沿用主密钥）"}),
-        }}
-
-    RETURN_TYPES = ("STRING", "STRING")
-    RETURN_NAMES = ("回复", "思考过程")
-    FUNCTION = "generate"
-    CATEGORY = "LK_Studio/通用 API/文本"
-
-    def generate(self, prompt, model, base_url, api_key, system_instruction="",
-                 temperature=1.0, max_tokens=2048, top_p=1.0, timeout=120,
-                 fallback_base_url="", fallback_api_key=""):
-        if not base_url:
-            return ("错误: 请提供 base_url", "")
-        try:
-            fb_key = fallback_api_key if fallback_api_key else api_key
-            client = UniversalAPIClient(base_url, api_key, timeout=timeout, max_retries=3,
-                                        fallback_base_url=fallback_base_url, fallback_api_key=fb_key)
-            messages = []
-            if system_instruction:
-                messages.append({"role": "system", "content": system_instruction})
-            messages.append({"role": "user", "content": prompt})
-            resp = client.chat_completion(model=model, messages=messages,
-                                          temperature=temperature, max_tokens=max_tokens, top_p=top_p)
-            reply = client.parse_chat_text(resp)
-            reasoning = client.parse_chat_reasoning(resp)
-            if resp.get("_fallback_used"):
-                reply = f"[已回退至备用端点] {reply}"
-            return (reply, reasoning)
-        except UniversalAPIError as e:
-            return (f"API 错误: {str(e)}", "")
-        except Exception as e:
-            return (f"错误: {str(e)}", "")
-
-
 class LK_Universal_Chat:
-    """通用多轮对话（纯文本）：传入历史可链式多轮，返回更新后的历史 JSON。
+    """通用对话（单轮/多轮统一）：无 history 即单轮，传入 history 可链式多轮。
 
-    注：多模态视觉请使用「视觉」分类的 LK_Universal_Vision 节点。
+    返回更新后的历史 JSON，便于在多节点间传递上下文。
+    多模态视觉请使用「视觉」分类的 LK_Universal_Vision 节点。
     """
 
     @classmethod
@@ -324,7 +291,7 @@ class LK_Universal_Chat:
             "base_url": ("STRING", {"default": "https://api.openai.com/v1"}),
             "api_key": ("STRING", {"default": ""}),
         }, "optional": {
-            "history": ("STRING", {"multiline": True, "default": "", "placeholder": "多轮历史 JSON（可选）"}),
+            "history": ("STRING", {"multiline": True, "default": "", "placeholder": "多轮历史 JSON（可选，留空=单轮）"}),
             "system_instruction": ("STRING", {"multiline": True, "default": ""}),
             "temperature": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.1}),
             "max_tokens": ("INT", {"default": 2048, "min": 1, "max": 65536, "step": 256}),
@@ -346,6 +313,7 @@ class LK_Universal_Chat:
             fb_key = fallback_api_key if fallback_api_key else api_key
             client = UniversalAPIClient(base_url, api_key, timeout=timeout, max_retries=3,
                                         fallback_base_url=fallback_base_url, fallback_api_key=fb_key)
+            _validate_model(model, base_url)
             messages = []
             if system_instruction:
                 messages.append({"role": "system", "content": system_instruction})
@@ -365,32 +333,6 @@ class LK_Universal_Chat:
             return (f"API 错误: {str(e)}", "", history)
         except Exception as e:
             return (f"错误: {str(e)}", "", history)
-
-
-class LK_Universal_Session:
-    """会话管理：合并/裁剪/清空历史 JSON，便于在工作流中编排多轮上下文。"""
-
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {"required": {
-            "history_a": ("STRING", {"multiline": True, "default": "", "placeholder": "历史 A（JSON 数组）"}),
-        }, "optional": {
-            "history_b": ("STRING", {"multiline": True, "default": "", "placeholder": "历史 B（可选，追加到 A 后）"}),
-            "max_messages": ("INT", {"default": 20, "min": 1, "max": 100, "step": 1}),
-            "reset": ("BOOLEAN", {"default": False}),
-        }}
-
-    RETURN_TYPES = ("STRING", "INT")
-    RETURN_NAMES = ("合并历史", "消息条数")
-    FUNCTION = "manage"
-    CATEGORY = "LK_Studio/通用 API/文本"
-
-    def manage(self, history_a, history_b="", max_messages=20, reset=False):
-        if reset:
-            return ("[]", 0)
-        merged = _load_history(history_a) + _load_history(history_b)
-        merged = merged[-max_messages:]
-        return (_save_history(merged, limit=max_messages), len(merged))
 
 
 # ===========================================================================
@@ -423,6 +365,7 @@ class LK_Universal_ImageGen:
             return (create_empty_image(8, 8), "错误: 请提供 base_url")
         try:
             client = UniversalAPIClient(base_url, api_key, timeout=timeout, max_retries=2)
+            _validate_model(model, base_url)
             resp = client.generate_image(model=model, prompt=prompt, n=n, size=size)
             b64_list = client.parse_image_b64(resp)
             if not b64_list:
@@ -463,6 +406,7 @@ class LK_Universal_ImageEdit:
             return (create_empty_image(8, 8), "错误: 请提供 base_url")
         try:
             client = UniversalAPIClient(base_url, api_key, timeout=timeout, max_retries=2)
+            _validate_model(model, base_url)
             img_b64 = _images_to_b64(image, max_count=1)
             mask_b64 = _images_to_b64(mask, max_count=1)[0] if mask is not None else None
             resp = client.edit_image(model=model, prompt=prompt, image_b64=img_b64,
@@ -478,11 +422,12 @@ class LK_Universal_ImageEdit:
 
 
 # ===========================================================================
-# 视频类
+# 视频类（文生视频 / 图生视频）
 # ===========================================================================
 class LK_Universal_VideoGen:
-    """通用文生视频：调用 /videos/generations（兼容端点支持时）。
+    """通用视频生成：文生视频（/videos/generations）。
 
+    可选地传入 image 作为首帧/参考图（端点支持图生视频时生效，如 first-frame）。
     返回结果说明（取决于端点）：URL 直链 或 base64 片段。
     若端点未开放视频能力，会明确提示而非静默失败。
     """
@@ -496,6 +441,7 @@ class LK_Universal_VideoGen:
             "base_url": ("STRING", {"default": "https://api.openai.com/v1"}),
             "api_key": ("STRING", {"default": ""}),
         }, "optional": {
+            "image": ("IMAGE",),
             "duration": ("FLOAT", {"default": 5.0, "min": 1.0, "max": 60.0, "step": 1.0}),
             "aspect_ratio": (["16:9", "9:16", "1:1"], {"default": "16:9"}),
             "timeout": ("INT", {"default": 300, "min": 30, "max": 1200, "step": 30}),
@@ -506,13 +452,21 @@ class LK_Universal_VideoGen:
     FUNCTION = "generate"
     CATEGORY = "LK_Studio/通用 API/视频"
 
-    def generate(self, prompt, model, base_url, api_key, duration=5.0, aspect_ratio="16:9", timeout=300):
+    def generate(self, prompt, model, base_url, api_key, duration=5.0, aspect_ratio="16:9",
+                 image=None, timeout=300):
         if not base_url:
             return ("错误: 请提供 base_url",)
         try:
             client = UniversalAPIClient(base_url, api_key, timeout=timeout, max_retries=2)
-            resp = client.generate_video(model=model, prompt=prompt, duration=duration, aspect_ratio=aspect_ratio)
-            # 兼容 url 或 b64
+            _validate_model(model, base_url)
+            extra = {}
+            if image is not None:
+                img_b64 = _images_to_b64(image, max_count=1)
+                if img_b64:
+                    # 透传首帧/参考图，端点支持图生视频时生效（如 Gemini firstFrameImage）
+                    extra["image"] = img_b64[ 0]
+            resp = client.generate_video(model=model, prompt=prompt, duration=duration,
+                                         aspect_ratio=aspect_ratio, **extra)
             items = resp.get("data", []) if isinstance(resp, dict) else []
             if not items:
                 return ("端点未返回视频数据（可能不支持 /videos/generations，或任务异步未完成）",)
@@ -565,6 +519,7 @@ class LK_Universal_Vision:
             return ("错误: 请提供 base_url", history)
         try:
             client = UniversalAPIClient(base_url, api_key, timeout=timeout, max_retries=3)
+            _validate_model(model, base_url)
             messages = []
             if system_instruction:
                 messages.append({"role": "system", "content": system_instruction})
@@ -590,120 +545,89 @@ class LK_Universal_Vision:
 # ===========================================================================
 # 高级类
 # ===========================================================================
-class LK_Universal_Structured:
-    """通用结构化输出：强制 JSON 返回（兼容 json_object / response_schema 端点）。"""
+class LK_Universal_Advanced:
+    """通用高级对话：用 mode 切换「结构化输出(JSON)」或「工具调用(Function Calling)」。
+
+    - 结构化输出：强制返回 JSON（response_format=json_object，端点不支持时自动降级）。
+    - 工具调用：传入工具定义，返回模型选择的调用清单。
+    返回 (结果, 原始响应)；结构化模式结果为格式化 JSON，工具调用模式结果为调用清单 JSON。
+    """
 
     @classmethod
     def INPUT_TYPES(cls):
         models = get_cached_models()
         return {"required": {
+            "mode": (["结构化输出", "工具调用"], {"default": "结构化输出"}),
             "prompt": ("STRING", {"multiline": True, "placeholder": "输入提示词..."}),
+            "model": (models, {"default": models[0] if models else "gpt-4o"}),
+            "base_url": ("STRING", {"default": "https://api.openai.com/v1"}),
+            "api_key": ("STRING", {"default": ""}),
+        }, "optional": {
+            "system_instruction": ("STRING", {"multiline": True, "default": ""}),
             "json_schema": ("STRING", {"multiline": True,
                 "default": '{\n  "type": "object",\n  "properties": {\n    "result": {"type": "string"}\n  }\n}'}),
-            "model": (models, {"default": models[0] if models else "gpt-4o"}),
-            "base_url": ("STRING", {"default": "https://api.openai.com/v1"}),
-            "api_key": ("STRING", {"default": ""}),
-        }, "optional": {
-            "system_instruction": ("STRING", {"multiline": True, "default": "你只输出符合 schema 的 JSON。"}),
-            "temperature": ("FLOAT", {"default": 0.7, "min": 0.0, "max": 2.0, "step": 0.1}),
-            "max_tokens": ("INT", {"default": 2048, "min": 1, "max": 65536, "step": 256}),
-            "timeout": ("INT", {"default": 120, "min": 10, "max": 600, "step": 10}),
-        }}
-
-    RETURN_TYPES = ("STRING", "STRING")
-    RETURN_NAMES = ("JSON 输出", "原始响应")
-    FUNCTION = "generate"
-    CATEGORY = "LK_Studio/通用 API/高级"
-
-    def generate(self, prompt, json_schema, model, base_url, api_key,
-                 system_instruction="", temperature=0.7, max_tokens=2048, timeout=120):
-        if not base_url:
-            return ("错误: 请提供 base_url", "")
-        try:
-            schema = json.loads(json_schema)
-        except json.JSONDecodeError as e:
-            return ("", f"JSON Schema 解析错误: {str(e)}")
-
-        try:
-            client = UniversalAPIClient(base_url, api_key, timeout=timeout, max_retries=3)
-            messages = []
-            if system_instruction:
-                messages.append({"role": "system", "content": system_instruction})
-            messages.append({"role": "user", "content": prompt})
-
-            try:
-                resp = client.chat_completion(
-                    model=model, messages=messages,
-                    temperature=temperature, max_tokens=max_tokens,
-                    response_format={"type": "json_object"},
-                )
-            except UniversalAPIError:
-                resp = client.chat_completion(
-                    model=model, messages=messages,
-                    temperature=temperature, max_tokens=max_tokens,
-                )
-            raw = client.parse_chat_text(resp)
-            try:
-                parsed = json.loads(raw)
-                return (json.dumps(parsed, ensure_ascii=False, indent=2), raw)
-            except Exception:
-                return (raw, raw)
-        except UniversalAPIError as e:
-            return ("", f"API 错误: {str(e)}")
-        except Exception as e:
-            return ("", f"错误: {str(e)}")
-
-
-class LK_Universal_ToolUse:
-    """通用工具调用（Function Calling）：传入工具定义，返回模型选择的调用清单。"""
-
-    @classmethod
-    def INPUT_TYPES(cls):
-        models = get_cached_models()
-        return {"required": {
-            "prompt": ("STRING", {"multiline": True, "placeholder": "用户请求..."}),
             "tools": ("STRING", {"multiline": True,
                 "default": '[\n  {\n    "type": "function",\n    "function": {\n      "name": "get_weather",\n      "description": "查询天气",\n      "parameters": {"type": "object", "properties": {"city": {"type": "string"}}}\n    }\n  }\n]'}),
-            "model": (models, {"default": models[0] if models else "gpt-4o"}),
-            "base_url": ("STRING", {"default": "https://api.openai.com/v1"}),
-            "api_key": ("STRING", {"default": ""}),
-        }, "optional": {
-            "system_instruction": ("STRING", {"multiline": True, "default": "你按需调用提供的工具。"}),
             "temperature": ("FLOAT", {"default": 0.7, "min": 0.0, "max": 2.0, "step": 0.1}),
             "max_tokens": ("INT", {"default": 2048, "min": 1, "max": 65536, "step": 256}),
             "timeout": ("INT", {"default": 120, "min": 10, "max": 600, "step": 10}),
         }}
 
     RETURN_TYPES = ("STRING", "STRING")
-    RETURN_NAMES = ("调用清单(JSON)", "原始响应")
-    FUNCTION = "call_tools"
+    RETURN_NAMES = ("结果", "原始响应")
+    FUNCTION = "run"
     CATEGORY = "LK_Studio/通用 API/高级"
 
-    def call_tools(self, prompt, tools, model, base_url, api_key, system_instruction="",
-                   temperature=0.7, max_tokens=2048, timeout=120):
+    def run(self, mode, prompt, model, base_url, api_key, system_instruction="",
+            json_schema='{"type": "object"}', tools="[]",
+            temperature=0.7, max_tokens=2048, timeout=120):
         if not base_url:
             return ("错误: 请提供 base_url", "")
         try:
-            tool_defs = json.loads(tools)
-        except json.JSONDecodeError as e:
-            return ("", f"工具定义解析错误: {str(e)}")
-
-        try:
             client = UniversalAPIClient(base_url, api_key, timeout=timeout, max_retries=3)
+            _validate_model(model, base_url)
             messages = []
             if system_instruction:
                 messages.append({"role": "system", "content": system_instruction})
             messages.append({"role": "user", "content": prompt})
-            resp = client.chat_completion(
-                model=model, messages=messages,
-                temperature=temperature, max_tokens=max_tokens,
-                tools=tool_defs, tool_choice="auto",
-            )
-            calls = client.parse_tool_calls(resp)
-            if not calls:
-                text = client.parse_chat_text(resp)
-                return ("（模型未触发工具调用）", text)
-            return (json.dumps(calls, ensure_ascii=False, indent=2), client.parse_chat_text(resp))
+
+            if mode == "工具调用":
+                try:
+                    tool_defs = json.loads(tools)
+                except json.JSONDecodeError as e:
+                    return ("", f"工具定义解析错误: {str(e)}")
+                resp = client.chat_completion(
+                    model=model, messages=messages,
+                    temperature=temperature, max_tokens=max_tokens,
+                    tools=tool_defs, tool_choice="auto",
+                )
+                calls = client.parse_tool_calls(resp)
+                if not calls:
+                    text = client.parse_chat_text(resp)
+                    return (text, text)
+                return (json.dumps(calls, ensure_ascii=False, indent=2), client.parse_chat_text(resp))
+            else:
+                try:
+                    schema = json.loads(json_schema)
+                except json.JSONDecodeError as e:
+                    return ("", f"JSON Schema 解析错误: {str(e)}")
+                try:
+                    resp = client.chat_completion(
+                        model=model, messages=messages,
+                        temperature=temperature, max_tokens=max_tokens,
+                        response_format={"type": "json_object"},
+                    )
+                except UniversalAPIError:
+                    resp = client.chat_completion(
+                        model=model, messages=messages,
+                        temperature=temperature, max_tokens=max_tokens,
+                    )
+                raw = client.parse_chat_text(resp)
+                try:
+                    parsed = json.loads(raw)
+                    return (json.dumps(parsed, ensure_ascii=False, indent=2), raw)
+                except Exception:
+                    return (raw, raw)
         except UniversalAPIError as e:
             return ("", f"API 错误: {str(e)}")
         except Exception as e:
@@ -742,6 +666,7 @@ class LK_Universal_BatchChat:
             return ("错误: 没有有效提示词（每行一个）", 0)
         try:
             client = UniversalAPIClient(base_url, api_key, timeout=timeout, max_retries=2)
+            _validate_model(model, base_url)
             messages = []
             if system_instruction:
                 messages.append({"role": "system", "content": system_instruction})
