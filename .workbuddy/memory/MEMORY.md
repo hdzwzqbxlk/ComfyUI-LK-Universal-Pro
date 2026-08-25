@@ -9,10 +9,12 @@
 - **PR 合并通道**：同样走 **`gh` CLI**（`gh pr merge <n> --merge`，与 PR #1 风格一致保留 merge commit）。⚠️ `github` MCP 在本仓库仅有**读权限**——`merge_pull_request` 报 `403 Resource not accessible by integration`，写操作（合并/标签/关闭）一律用 `gh` CLI，不要浪费一次调用在 MCP 合并上。
 
 ## 代码结构要点
-- 通用 API 层：`utils/api_client.py`(UniversalAPIClient) + `utils/provider_registry.py`(14 厂商预设+全局缓存) + `nodes/universal_nodes.py`(15 节点，6 大类：工具/文本/图像/视频/视觉/高级)。
+- 通用 API 层：`utils/api_client.py`(UniversalAPIClient) + `utils/provider_registry.py`(14 厂商预设+全局缓存) + `nodes/universal_nodes.py`(11 节点：工具/Chat/图像/视频/视觉/高级)。已移除 Gemini 专属体系（`GeminiAPIClient` 与 7 个 gemini 节点文件）。
+- 11 节点清单：APIConfig, ModelFetcher, HealthCheck, ModelCompare（工具）；Chat（含单轮+会话）；ImageGen, ImageEdit（图像）；VideoGen（含图生视频）；Vision（视觉）；Advanced（结构化输出/工具调用二合一）；BatchChat, TokenEstimate（高级）。
 - 图像转换复用 `utils/image_utils`，不重复造轮子。
-- 版本号语义：仅大改动升 MINOR/MAJOR；修复/小幅优化走 PATCH（用户要求版本号不要跑太快）。当前 2.4.0。
+- 版本号语义：仅大改动升 MINOR/MAJOR；修复/小幅优化走 PATCH（用户要求版本号不要跑太快）。当前 2.5.0。
 
 ## 关键历史
 - 2026-08-24：v2.3.0/2.3.1 通用 API 兼容层（4 节点）→ PR #1 已合并 main（781b889）。分支 `feat/universal-api-compat` 已于 8/25 本地+远程清理。
 - 2026-08-24：v2.4.0 通用 API 节点铺满 6 大类（15 节点）→ 分支 `feat/universal-nodes-v2` 已 push，PR #2 经 **`gh` CLI `--merge` 合并 main（d8f194d，保留 merge commit，风格同 PR #1）**。github MCP 合并报 403（仅读），已改用 gh。分支 `feat/universal-nodes-v2` 已于 8/25 合并后清理（本地+远程）。
+- 2026-08-25：v2.5.0 重构——移除全部 Gemini 专项体系（18 节点/7 文件 + `GeminiAPIClient`），通用节点 15→11（Chat 吸收单轮/会话、VideoGen 加图生视频、Structured+ToolUse 合并为 Advanced）。PR #3 经 **`gh` CLI `--merge` 合并 main（14ef447，保留 merge commit）**，本地 main 已 ff 对齐（`d8f194d..14ef447`）。分支 `feat/refactor-universal` 保留未删（多一个 docs commit 15d75ad）。
