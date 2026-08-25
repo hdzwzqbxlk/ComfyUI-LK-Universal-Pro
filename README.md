@@ -2,11 +2,11 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/Version-2.4.0-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-2.5.0-blue?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge)
 ![ComfyUI](https://img.shields.io/badge/ComfyUI-Compatible-orange?style=for-the-badge)
-![Gemini](https://img.shields.io/badge/Google-Gemini_API-4285F4?style=for-the-badge&logo=google&logoColor=white)
+![OpenAI](https://img.shields.io/badge/OpenAI-Compatible-007EA7?style=for-the-badge)
 
 **[English](#english) | [中文说明](#中文说明)**
 
@@ -18,59 +18,44 @@
 ## 📖 English
 
 ### Introduction
-**ComfyUI-LK-Universal-Pro** is a comprehensive extension for ComfyUI, deeply integrated with Google's Gemini API ecosystem. It provides a robust set of nodes designed to unlock the full potential of multi-modal generative AI within the ComfyUI workflow.
-
-This project goes beyond simple text generation, offering native support for image generation (Imagen 3, Nano Banana), video generation (Veo 3.1), advanced computer vision analysis, and structured outputs. It is designed for professionals who require precision, flexibility, and the latest capabilities of the Gemini models.
+**ComfyUI-LK-Universal-Pro** is a ComfyUI extension that connects to **any OpenAI-compatible API endpoint** — OpenAI / Ollama / OpenRouter / DeepSeek / Volcano Ark / SiliconFlow / any custom URL. It provides a focused set of universal nodes covering text, image, video, vision and tool-use workflows, with **no vendor lock-in**.
 
 ### 📁 Node Structure
-
-All nodes are organized under `LK_Studio/` with platform-specific subfolders for future expansion:
+All nodes live under `LK_Studio/通用 API`:
 
 ```
-LK_Studio/
-└── Gemini/
-    ├── 文本/          # Text generation nodes
-    ├── 图像/          # Image generation nodes (incl. NanoBanana)
-    ├── 视频/          # Video generation nodes
-    ├── 视觉/          # Vision understanding nodes
-    ├── 高级/          # Advanced feature nodes
-    └── 工具/          # Utility nodes
+LK_Studio/通用 API/
+├── 工具/    # APIConfig / ModelFetcher / HealthCheck / ModelCompare
+├── 文本/    # Chat (single & multi-turn)
+├── 图像/    # ImageGen / ImageEdit
+├── 视频/    # VideoGen (text→video / image→video)
+├── 视觉/    # Vision (multi-image)
+└── 高级/    # Advanced (structured / tool-calling) / BatchChat / TokenEstimate
 ```
 
 ### ✨ Key Features
-
-*   **Advanced Text Generation**: Support for Gemini 1.5/2.5/3.0 Pro & Flash models, including "Thinking" mode for complex reasoning.
-*   **Multi-Modal Generation**:
-    *   **Image**: Native integration of Imagen 3 and Gemini image generation (Nano Banana).
-    *   **Video**: Access to Veo 3.1 for high-quality text-to-video and image-to-video transfers.
-*   **Computer Vision**: Deep visual analysis and document processing (PDF/Image) capabilities.
-*   **Image-to-Prompt**: Reverse engineer prompts from images for style transfer.
-*   **Workflow Control**: Structured JSON outputs, automatic prompt optimization, and multi-turn chat memory management.
-*   **Utility Tools**: Centralized API key management and model information retrieval.
+* **Universal API**: one node family for any OpenAI-compatible endpoint.
+* **Auto model fetch**: `ModelFetcher` pulls the real `/models` list from your endpoint and fills the dropdown (refresh button).
+* **Smart failover**: configure a backup endpoint; auto-fallback on failure.
+* **Multi-modal**: image generation, image editing, video generation, vision understanding.
+* **Advanced**: structured JSON output, function calling, batch chat, token estimation.
 
 ### 🧩 Node List
 
-| Category | Node Name | Display Name | Description |
+| Category | Node | Display | Description |
 | :--- | :--- | :--- | :--- |
-| **Text** | `LK_Gemini_Text` | 🌟 LK Gemini 文本生成 | Standard text generation with model selection. |
-| | `LK_Gemini_Chat` | 💬 LK Gemini 多轮对话 | Multi-turn conversation with context history. |
-| **Image** | `LK_Gemini_ImageGen` | 🎨 LK Gemini 图像生成 (Nano Banana) | Native Gemini image generation. |
-| | `LK_Gemini_ImageEdit` | ✏️ LK Gemini 图像编辑 | Edit existing images via text instructions. |
-| | `LK_Gemini_Imagen` | 🖼️ LK Imagen 图像生成 | High-fidelity generation using Imagen 3 models. |
-| | `LK_NanoBanana` | 🍌 LK Nano Banana | Flash image generation (gemini-2.5-flash-image). |
-| | `LK_NanoBananaPro` | 🍌 LK Nano Banana Pro | Pro image generation (gemini-3-pro-image-preview). |
-| | `LK_NanoBananaMulti` | 🍌 LK Nano Banana 多图 | Multi-image blending & style transfer (up to 8 inputs). |
-| | `LK_ImageToPrompt` | 🔄 LK 图像反推提示词 | Generate prompts from images for recreation. |
-| **Video** | `LK_Gemini_VideoGen` | 🎬 LK Gemini 视频生成 (Veo 3.1) | Text-to-Video generation using Veo 3.1. |
-| | `LK_Gemini_Image2Video` | 📹 LK Gemini 图生视频 | Transform source images into video sequences. |
-| **Vision** | `LK_Gemini_VisionAnalyze`| 👁️ LK Gemini 视觉分析 | Analyze images for descriptions, tagging. |
-| | `LK_Gemini_DocumentProcess` | 📄 LK Gemini 文档处理 | Extract and process text from Documents/PDFs. |
-| **Advanced**| `LK_Gemini_StructuredOutput`| 📋 LK Gemini 结构化输出 | Enforce JSON output schemas. |
-| | `LK_Gemini_PromptOptimizer` | 🔮 LK Gemini 提示词优化 | Optimize user prompts for better results. |
-| | `LK_Gemini_Thinking` | 🧠 LK Gemini 深度思考 | Explicit reasoning step for complex queries. |
-| **Utils** | `LK_Gemini_APIConfig` | ⚙️ LK Gemini API 配置 | Secure API Key configuration. |
-| | `LK_Gemini_ModelInfo` | 📊 LK Gemini 模型信息 | List available models and capabilities. |
-| | `LK_Gemini_PromptBuilder` | 🔧 LK 提示词构建器 | Helper tool to construct complex prompts. |
+| **Text** | `LK_Universal_Chat` | 💬 对话 (单轮/多轮) | Single/multi-turn chat, outputs history JSON. |
+| **Image** | `LK_Universal_ImageGen` | 🎨 图像生成 | Text-to-image (`/images/generations`). |
+| | `LK_Universal_ImageEdit` | ✏️ 图像编辑 | Image edit/inpaint (`/images/edits`). |
+| **Video** | `LK_Universal_VideoGen` | 🎬 视频生成 | Text/image-to-video (`/videos/generations`). |
+| **Vision** | `LK_Universal_Vision` | 👁️ 视觉理解 | Multi-image + text understanding. |
+| **Advanced** | `LK_Universal_Advanced` | 🧩 高级对话 | Structured JSON output OR function calling (mode switch). |
+| | `LK_Universal_BatchChat` | 📚 批量对话 | Batch prompts (one row each), summarize results. |
+| | `LK_Universal_TokenEstimate` | 🧮 Token 估算 | Rough token-budget estimation. |
+| **Tools** | `LK_Universal_APIConfig` | 🌐 API 配置 | Provider presets / custom `base_url` + backup. |
+| | `LK_Universal_ModelFetcher` | 📡 模型获取 | Auto-pull model list (`/models`). |
+| | `LK_Universal_HealthCheck` | 🩺 健康检查 | Latency + auth check. |
+| | `LK_Universal_ModelCompare` | 🔍 模型对比 | Compare primary/backup model sets. |
 
 ### 📦 Installation
 
@@ -89,12 +74,18 @@ LK_Studio/
 3.  **Restart ComfyUI**
 
 ### 🔑 Configuration
-
-1.  Obtain an API Key from [Google AI Studio](https://aistudio.google.com/).
+1.  Obtain an API key from your provider (OpenAI / Ollama / OpenRouter / DeepSeek / …).
 2.  Configure in ComfyUI:
     *   **Direct Input**: Paste the key into the `api_key` widget on any node.
-    *   **Environment Variable**: Set `GOOGLE_API_KEY` in your system environment.
-    *   **Config Node**: Use the `⚙️ LK Gemini API 配置` node to manage keys centrally.
+    *   **Config Node**: Use the `🌐 LK 通用 API 配置` node to manage base_url / key centrally (with optional backup endpoint).
+
+### 🌐 典型工作流
+1. 拖入 **🌐 LK 通用 API 配置**，选择厂商（如 `Ollama (本地)`）或填自定义 `base_url`。
+2. 拖入 **📡 LK 通用 模型获取**，连接上一步的 `Base URL` / `API 密钥`，执行后自动拉取模型。
+3. 在对话节点上点击模型下拉框的刷新按钮，即可看到刚拉取的模型列表。
+4. 输入提示词（可接入图像做多模态分析），开始使用。
+
+> 支持的内置厂商预设：`OpenAI`、`Ollama (本地)`、`OpenRouter`、`DeepSeek`、`Together.ai`、`Venus (火山方舟)`、`硅基流动 (SiliconFlow)`、`智谱 GLM`、`Moonshot (Kimi)`、`百川`、`MiniMax`、`阶跃`、`讯飞星火`、`商汤 SenseChat`、`自定义 (Custom)`（共 14 家预设 + 自定义）。
 
 ### 📄 License
 This project is licensed under the [MIT License](LICENSE).
@@ -105,94 +96,44 @@ This project is licensed under the [MIT License](LICENSE).
 ## 📖 中文说明
 
 ### 项目简介
-**ComfyUI-LK-Universal-Pro** 是一个为 ComfyUI 打造的全能型扩展插件，旨在深度集成 Google Gemini API 生态系统。该项目提供了一整套专业级节点，帮助用户在 ComfyUI 工作流中充分释放多模态生成式 AI 的潜力。
-
-本项目支持 Imagen 3 图像生成、Nano Banana 图像生成、Veo 3.1 视频生成、高级计算机视觉分析以及结构化数据输出。
+**ComfyUI-LK-Universal-Pro** 是一个为 ComfyUI 打造的通用型扩展插件，可对接**任意遵循 OpenAI 协议的端点**（OpenAI / Ollama / OpenRouter / DeepSeek / 火山方舟 / 硅基流动 / 任意自定义 URL），提供覆盖文本、图像、视频、视觉与工具调用的节点，**不绑定任何单一厂商**。
 
 ### 📁 节点结构
-
-所有节点统一组织在 `LK_Studio/` 目录下，按平台分类，便于后期扩展：
+所有节点统一组织在 `LK_Studio/通用 API` 目录下，按能力分类：
 
 ```
-LK_Studio/
-└── Gemini/
-    ├── 文本/          # 文本生成节点
-    ├── 图像/          # 图像生成节点 (含 NanoBanana)
-    ├── 视频/          # 视频生成节点
-    ├── 视觉/          # 视觉理解节点
-    ├── 高级/          # 高级功能节点
-    └── 工具/          # 辅助工具节点
+LK_Studio/通用 API/
+├── 工具/    # APIConfig / ModelFetcher / HealthCheck / ModelCompare
+├── 文本/    # Chat (单轮/多轮)
+├── 图像/    # ImageGen / ImageEdit
+├── 视频/    # VideoGen (文生视频 / 图生视频)
+├── 视觉/    # Vision (多图理解)
+└── 高级/    # Advanced (结构化/工具调用) / BatchChat / TokenEstimate
 ```
 
 ### ✨ 核心特性
-
-*   **高级文本生成**: 支持 Gemini 1.5/2.5/3.0 Pro & Flash 全系模型，包含"深度思考"模式。
-*   **多模态生成**:
-    *   **图像**: 原生集成 Imagen 3 及 Gemini 图像生成 (Nano Banana)。
-    *   **视频**: 接入 Veo 3.1 模型，支持文生视频及图生视频。
-*   **视觉理解**: 深度图像语义分析及文档处理能力。
-*   **图像反推**: 从图像反向生成提示词，用于风格迁移。
-*   **工作流控制**: JSON 结构化输出、提示词优化、多轮对话管理。
-*   **辅助工具**: 统一 API 密钥管理及模型信息查询。
+*   **通用 API**：一套节点对接任意 OpenAI 兼容端点，告别厂商硬编码。
+*   **自动拉取模型**：`📡 模型获取` 从端点拉取真实 `/models` 列表并填充下拉框（点击刷新即可刷新）。
+*   **Smart 故障转移**：配置备用端点，主端点失败时自动回退。
+*   **多模态**：图像生成、图像编辑、视频生成、视觉理解。
+*   **高级能力**：结构化 JSON 输出、Function Calling、批量对话、Token 预算估算。
 
 ### 🧩 节点列表
 
 | 类别 | 节点类名 | 显示名称 | 功能描述 |
 | :--- | :--- | :--- | :--- |
-| **文本** | `LK_Gemini_Text` | 🌟 LK Gemini 文本生成 | 标准文本生成，支持模型选择。 |
-| | `LK_Gemini_Chat` | 💬 LK Gemini 多轮对话 | 支持上下文历史的多轮对话。 |
-| **图像** | `LK_Gemini_ImageGen` | 🎨 LK Gemini 图像生成 (Nano Banana) | Gemini 原生绘图能力。 |
-| | `LK_Gemini_ImageEdit` | ✏️ LK Gemini 图像编辑 | 基于文本指令编辑图像。 |
-| | `LK_Gemini_Imagen` | 🖼️ LK Imagen 图像生成 | Imagen 3 高保真图像生成。 |
-| | `LK_NanoBanana` | 🍌 LK Nano Banana | Flash 图像生成 (gemini-2.5-flash-image)。 |
-| | `LK_NanoBananaPro` | 🍌 LK Nano Banana Pro | Pro 高质量图像生成 (gemini-3-pro-image-preview)。 |
-| | `LK_NanoBananaMulti` | 🍌 LK Nano Banana 多图 | 多图融合、风格迁移 (支持8图输入)。 |
-| | `LK_ImageToPrompt` | 🔄 LK 图像反推提示词 | 分析图像生成提示词，用于风格复刻。 |
-| **视频** | `LK_Gemini_VideoGen` | 🎬 LK Gemini 视频生成 (Veo 3.1) | Veo 3.1 文生视频。 |
-| | `LK_Gemini_Image2Video` | 📹 LK Gemini 图生视频 | 静态图像转动态视频。 |
-| **视觉** | `LK_Gemini_VisionAnalyze`| 👁️ LK Gemini 视觉分析 | 图像描述、打标、分析。 |
-| | `LK_Gemini_DocumentProcess` | 📄 LK Gemini 文档处理 | PDF/文档图片解析提取。 |
-| **高级** | `LK_Gemini_StructuredOutput`| 📋 LK Gemini 结构化输出 | JSON Schema 约束输出。 |
-| | `LK_Gemini_PromptOptimizer` | 🔮 LK Gemini 提示词优化 | 智能优化提示词。 |
-| | `LK_Gemini_Thinking` | 🧠 LK Gemini 深度思考 | 复杂问题显式推理。 |
-| **工具** | `LK_Gemini_APIConfig` | ⚙️ LK Gemini API 配置 | API 密钥安全配置。 |
-| | `LK_Gemini_ModelInfo` | 📊 LK Gemini 模型信息 | 模型列表及配额查询。 |
-| | `LK_Gemini_PromptBuilder` | 🔧 LK 提示词构建器 | 辅助构建提示词模板。 |
-
-### 🌐 通用 API 节点（适配任意 OpenAI 兼容自定义接口）
-
-除 Gemini 专属节点外，本插件内置一套**通用 API 节点**，可对接任意遵循 OpenAI 协议的端点（OpenAI / Ollama / OpenRouter / DeepSeek / 火山方舟 / 硅基流动 / 任意自定义 URL）。节点按 **6 大类** 组织，颗粒度对标 Gemini 系列：
-
-| 类别 | 节点类名 | 显示名称 | 功能描述 |
-| :--- | :--- | :--- | :--- |
-| **工具** | `LK_Universal_APIConfig` | 🌐 LK 通用 API 配置 | 选择厂商预设或自定义 base_url，统一输出连接参数（含备用端点）。 |
-| | `LK_Universal_ModelFetcher` | 📡 LK 通用 模型获取 | **自动拉取**指定端点的模型列表并写入缓存。 |
-| | `LK_Universal_HealthCheck` | 🩺 LK 通用 端点健康检查 | 拉取 /models 并测往返延迟，验证端点可达 + 鉴权有效。 |
-| | `LK_Universal_ModelCompare` | 🔍 LK 通用 模型对比 | 对比主/备端点模型集合（仅主/仅备/共有），辅助故障转移选型。 |
-| **文本** | `LK_Universal_TextGen` | 📝 LK 通用 文本生成 | 单轮文生文，最轻量入口。 |
-| | `LK_Universal_Chat` | 💬 LK 通用 多轮对话 | 纯文本多轮对话，链式传递历史 JSON。 |
-| | `LK_Universal_Session` | 🧵 LK 通用 会话管理 | 合并/裁剪/清空历史 JSON，编排多轮上下文。 |
-| **图像** | `LK_Universal_ImageGen` | 🎨 LK 通用 图像生成 | 文生图（/images/generations）。 |
-| | `LK_Universal_ImageEdit` | ✏️ LK 通用 图像编辑 | 图生图/编辑（/images/edits，可选遮罩）。 |
-| **视频** | `LK_Universal_VideoGen` | 🎬 LK 通用 视频生成 | 文生视频（/videos/generations，端点支持时）。 |
-| **视觉** | `LK_Universal_Vision` | 👁️ LK 通用 视觉理解 | 多图 + 文本，专注图文对话（支持历史）。 |
-| **高级** | `LK_Universal_Structured` | 📋 LK 通用 结构化输出 | 强制 JSON 输出（response_format，自动降级）。 |
-| | `LK_Universal_ToolUse` | 🛠️ LK 通用 工具调用 | Function Calling：传入工具定义，返回模型调用清单。 |
+| **文本** | `LK_Universal_Chat` | 💬 LK 通用 对话 (单轮/多轮) | 单轮/多轮对话，输出历史 JSON。 |
+| **图像** | `LK_Universal_ImageGen` | 🎨 LK 通用 图像生成 | 文生图（`/images/generations`）。 |
+| | `LK_Universal_ImageEdit` | ✏️ LK 通用 图像编辑 | 图生图/编辑（`/images/edits`）。 |
+| **视频** | `LK_Universal_VideoGen` | 🎬 LK 通用 视频生成 (文/图生视频) | 文生视频 / 图生视频（`/videos/generations`，端点支持时）。 |
+| **视觉** | `LK_Universal_Vision` | 👁️ LK 通用 视觉理解 (多图) | 多图 + 文本，图文理解。 |
+| **高级** | `LK_Universal_Advanced` | 🧩 LK 通用 高级对话 (结构化/工具调用) | `mode` 切换「结构化输出」或「工具调用」。 |
 | | `LK_Universal_BatchChat` | 📚 LK 通用 批量对话 | 一次提交多组提示词（按行），逐条调用汇总。 |
 | | `LK_Universal_TokenEstimate` | 🧮 LK 通用 Token 估算 | 按系统/提示/历史/预留输出粗略估算，提前判断超限。 |
-
-#### 典型工作流
-
-1. 拖入 **🌐 LK 通用 API 配置**，选择厂商（如 `Ollama (本地)`）或填自定义 `base_url`。
-2. 拖入 **📡 LK 通用 模型获取**，连接上一步的 `Base URL` / `API 密钥`，执行后自动拉取模型。
-3. 在 **💬 LK 通用 对话** 节点上点击模型下拉框的刷新按钮，即可看到刚拉取的模型列表。
-4. 输入提示词（可接入图像做多模态分析），开始使用。
-
-> 支持的内置厂商预设：`OpenAI`、`Ollama (本地)`、`OpenRouter`、`DeepSeek`、`Together.ai`、`Venus (火山方舟)`、`硅基流动 (SiliconFlow)`、`智谱 GLM`、`Moonshot (Kimi)`、`百川`、`MiniMax`、`阶跃`、`讯飞星火`、`商汤 SenseChat`、`自定义 (Custom)`（共 14 家预设 + 自定义）。
-
-#### Smart 故障转移（主备回退）
-
-`LK_Universal_APIConfig` 与 `LK_Universal_Chat` 支持配置**备用端点**（如主用云端 API、备用本地 Ollama）。当主端点在重试后仍失败（超时 / 连接错误），客户端自动回退到备用端点完成请求，并在回复前标注 `[已回退至备用端点]`，保障工作流不中断。
+| **工具** | `LK_Universal_APIConfig` | 🌐 LK 通用 API 配置 | 选择厂商预设或自定义 `base_url`，统一输出连接参数（含备用端点）。 |
+| | `LK_Universal_ModelFetcher` | 📡 LK 通用 模型获取 (自动拉取) | 自动拉取指定端点的模型列表并写入缓存。 |
+| | `LK_Universal_HealthCheck` | 🩺 LK 通用 端点健康检查 | 拉取 /models 并测往返延迟，验证端点可达 + 鉴权有效。 |
+| | `LK_Universal_ModelCompare` | 🔍 LK 通用 模型对比 | 对比主/备端点模型集合（仅主/仅备/共有），辅助故障转移选型。 |
 
 ### 📦 安装说明
 
@@ -211,17 +152,24 @@ LK_Studio/
 3.  **重启 ComfyUI**
 
 ### 🔑 配置指南
-
-1.  前往 [Google AI Studio](https://aistudio.google.com/) 获取 API 密钥。
+1.  从你的服务商获取 API 密钥（OpenAI / Ollama / OpenRouter / DeepSeek / …）。
 2.  配置方式：
     *   **直接输入**: 在各节点 `api_key` 输入框中填入。
-    *   **环境变量**: 设置 `GOOGLE_API_KEY`。
-    *   **配置节点**: 使用 `⚙️ LK Gemini API 配置` 节点统一管理。
+    *   **配置节点**: 使用 `🌐 LK 通用 API 配置` 节点统一管理（含备用端点）。
+
+### 🌐 典型工作流
+1. 拖入 **🌐 LK 通用 API 配置**，选择厂商（如 `Ollama (本地)`）或填自定义 `base_url`。
+2. 拖入 **📡 LK 通用 模型获取**，连接上一步的 `Base URL` / `API 密钥`，执行后自动拉取模型。
+3. 在对话节点上点击模型下拉框的刷新按钮，即可看到刚拉取的模型列表。
+4. 输入提示词（可接入图像做多模态分析），开始使用。
+
+> 支持的内置厂商预设：`OpenAI`、`Ollama (本地)`、`OpenRouter`、`DeepSeek`、`Together.ai`、`Venus (火山方舟)`、`硅基流动 (SiliconFlow)`、`智谱 GLM`、`Moonshot (Kimi)`、`百川`、`MiniMax`、`阶跃`、`讯飞星火`、`商汤 SenseChat`、`自定义 (Custom)`（共 14 家预设 + 自定义）。
 
 ### 📄 许可证
 本项目基于 [MIT License](LICENSE) 开源。
 
 ---
+
 <div align="center">
     Copyright © 2026 CCUT_LK Studio. All rights reserved.
 </div>
