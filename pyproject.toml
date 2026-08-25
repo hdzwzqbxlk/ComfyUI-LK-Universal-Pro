@@ -1,6 +1,6 @@
 [project]
 name = "ComfyUI-LK-Universal-Pro"
-version = "2.5.1"
+version = "2.6.0"
 description = "ComfyUI 通用 AI 节点集合：兼容任意 OpenAI 兼容自定义 API 接口"
 readme = "README.md"
 license = {text = "MIT"}

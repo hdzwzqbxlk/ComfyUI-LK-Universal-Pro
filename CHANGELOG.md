@@ -2,6 +2,16 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
+## [2.6.0] - 2026-08-25
+
+### ✨ 增强：深度调研优秀插件后的能力补齐（对标 comfyui_LLM_party / RH_LLM_API / llm-toolkit / LLM_Polymath）
+
+- **全量采样参数**：Chat / Vision 统一接入 `top_p` / `frequency_penalty` / `presence_penalty` / 停止序列 / JSON 模式（`response_format=json_object`）/ `seed`
+- **流式输出**：`stream_output` 开启后走 SSE 流式请求，支持 DeepSeek-R1 风格 `reasoning_content` 思考链分离；流式不做重试/故障转移（避免重复生成）
+- **万能自定义参数透传 `extra_json`**：所有模型类节点均可传入任意 JSON 参数合并进请求体（如 `{"top_k": 40}`、`{"quality": "hd"}`、`{"fps": 24}`），端点私有参数不再受限——非法 JSON 容错忽略并提示
+- **调试日志**：`debug_log` 开关，打印请求 payload 键与调用细节，便于排障
+- 版本 2.5.1 → 2.6.0（MINOR：新增流式与通用参数透传能力）
+
 ## [2.5.1] - 2026-08-25
 
 ### ✨ 增强：原 Gemini 优秀功能集成进通用节点（不加节点，只增强）

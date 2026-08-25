@@ -4,12 +4,12 @@ ComfyUI-LK-Universal-Pro 插件
 面向「任意 OpenAI 兼容 API」的通用节点集合（工具 / 文本 / 图像 / 视频 / 视觉 / 高级）
 
 作者: CCUT_LK Studio
-版本: 2.5.1
+版本: 2.6.0
 许可证: MIT
 仓库: https://github.com/hdzwzqbxlk/ComfyUI-LK-Universal-Pro
 """
 
-__version__ = "2.5.1"
+__version__ = "2.6.0"
 __author__ = "CCUT_LK Studio"
 __license__ = "MIT"
 

@@ -78,6 +78,43 @@ def _validate_model(model: str, base_url: str) -> None:
         )
 
 
+# 对话类节点共享的「全量采样参数」optional 块（对标 Polymath Settings 等优秀插件）
+_SAMPLING_PARAMS = {
+    "top_p": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
+    "frequency_penalty": ("FLOAT", {"default": 0.0, "min": -2.0, "max": 2.0, "step": 0.1}),
+    "presence_penalty": ("FLOAT", {"default": 0.0, "min": -2.0, "max": 2.0, "step": 0.1}),
+    "stop_sequence": ("STRING", {"default": "", "placeholder": "停止序列（可选，如 ### 或 \\n\\n）"}),
+    "json_mode": (["自动", "开启"], {"default": "自动"}),
+    "seed": ("INT", {"default": -1, "min": -1, "max": 2147483647}),
+    "extra_json": ("STRING", {"multiline": True, "default": "",
+                              "placeholder": '自定义参数 JSON，合并进请求体。例：{"top_k": 40, "user": "lk"}'}),
+    "stream_output": (["关闭", "开启"], {"default": "关闭"}),
+    "debug_log": (["关闭", "开启"], {"default": "关闭"}),
+}
+
+
+def _sampling_kwargs(**kw) -> dict:
+    """把节点传入的采样参数整理为 chat_completion 的 **extra（None/默认无效值剔除）。"""
+    out = {}
+    if kw.get("top_p") is not None and kw.get("top_p") != 1.0:
+        out["top_p"] = kw["top_p"]
+    for k in ("frequency_penalty", "presence_penalty"):
+        v = kw.get(k)
+        if v:
+            out[k] = v
+    stop = kw.get("stop_sequence")
+    if stop:
+        # 支持逗号分隔多个停止序列
+        parts = [s.strip() for s in str(stop).replace("\\n", "\n").split(",") if s.strip()]
+        out["stop"] = parts if len(parts) > 1 else parts[0]
+    if kw.get("json_mode") == "开启":
+        out["response_format"] = {"type": "json_object"}
+    seed = kw.get("seed")
+    if seed is not None and seed >= 0:
+        out["seed"] = seed
+    return out
+
+
 def _save_history(messages: List[dict], limit: int = 20) -> str:
     """截断并序列化历史，避免无限膨胀。"""
     if len(messages) > limit:
@@ -296,6 +333,7 @@ class LK_Universal_Chat:
             "file_path": ("STRING", {"default": "", "placeholder": "文本文件路径（可选：txt/md/py/json 等，内容注入为上下文）"}),
             "temperature": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.1}),
             "max_tokens": ("INT", {"default": 2048, "min": 1, "max": 65536, "step": 256}),
+            **_SAMPLING_PARAMS,
             "timeout": ("INT", {"default": 120, "min": 10, "max": 600, "step": 10}),
             "fallback_base_url": ("STRING", {"default": "", "placeholder": "备用端点 base_url"}),
             "fallback_api_key": ("STRING", {"default": "", "placeholder": "备用端点密钥（留空沿用主密钥）"}),
@@ -307,14 +345,17 @@ class LK_Universal_Chat:
     CATEGORY = "LK_Studio/通用 API/文本"
 
     def chat(self, prompt, model, base_url, api_key, history="", system_instruction="",
-             file_path="", temperature=1.0, max_tokens=2048, timeout=120,
-             fallback_base_url="", fallback_api_key=""):
+             file_path="", temperature=1.0, max_tokens=2048,
+             top_p=1.0, frequency_penalty=0.0, presence_penalty=0.0, stop_sequence="",
+             json_mode="自动", seed=-1, extra_json="", stream_output="关闭", debug_log="关闭",
+             timeout=120, fallback_base_url="", fallback_api_key=""):
         if not base_url:
             return ("错误: 请提供 base_url", "", history)
         try:
             fb_key = fallback_api_key if fallback_api_key else api_key
             client = UniversalAPIClient(base_url, api_key, timeout=timeout, max_retries=3,
-                                        fallback_base_url=fallback_base_url, fallback_api_key=fb_key)
+                                        fallback_base_url=fallback_base_url, fallback_api_key=fb_key,
+                                        debug=(debug_log == "开启"))
             _validate_model(model, base_url)
             messages = []
             if system_instruction:
@@ -334,11 +375,25 @@ class LK_Universal_Chat:
 
             messages.append({"role": "user", "content": effective_prompt})
 
-            resp = client.chat_completion(model=model, messages=messages,
-                                          temperature=temperature, max_tokens=max_tokens)
-            reply = client.parse_chat_text(resp)
-            reasoning = client.parse_chat_reasoning(resp)
-            if resp.get("_fallback_used"):
+            extra_params = UniversalAPIClient.merge_extra(extra_json,
+                                                          _sampling_kwargs(
+                                                              top_p=top_p, frequency_penalty=frequency_penalty,
+                                                              presence_penalty=presence_penalty,
+                                                              stop_sequence=stop_sequence,
+                                                              json_mode=json_mode, seed=seed))
+            use_stream = (stream_output == "开启")
+            if use_stream:
+                resp_raw = client.chat_completion(model=model, messages=messages,
+                                                  temperature=temperature, max_tokens=max_tokens,
+                                                  stream=True, **extra_params)
+                reply, reasoning = client.consume_sse_stream(resp_raw)
+            else:
+                resp = client.chat_completion(model=model, messages=messages,
+                                              temperature=temperature, max_tokens=max_tokens,
+                                              **extra_params)
+                reply = client.parse_chat_text(resp)
+                reasoning = client.parse_chat_reasoning(resp)
+            if isinstance(resp, dict) and resp.get("_fallback_used"):
                 reply = f"[已回退至备用端点] {reply}" if reply else reply
 
             messages.append({"role": "assistant", "content": reply})
@@ -368,6 +423,9 @@ class LK_Universal_ImageGen:
             "size": (["1024x1024", "1792x1024", "1024x1792", "512x512", "256x256"], {"default": "1024x1024"}),
             "aspect_ratio": (["自动", "1:1", "16:9", "9:16", "4:3", "3:4"], {"default": "自动"}),
             "seed": ("INT", {"default": -1, "min": -1, "max": 2147483647}),
+            "extra_json": ("STRING", {"multiline": True, "default": "",
+                                      "placeholder": '自定义参数 JSON，合并进请求体。例：{"quality": "hd", "style": "vivid"}'}),
+            "debug_log": (["关闭", "开启"], {"default": "关闭"}),
             "timeout": ("INT", {"default": 180, "min": 10, "max": 600, "step": 10}),
         }}
 
@@ -380,17 +438,19 @@ class LK_Universal_ImageGen:
                 "4:3": "1152x864", "3:4": "864x1152"}
 
     def generate(self, prompt, model, base_url, api_key, n=1, size="1024x1024",
-                 aspect_ratio="自动", seed=-1, timeout=180):
+                 aspect_ratio="自动", seed=-1, extra_json="", debug_log="关闭", timeout=180):
         if not base_url:
             return (create_empty_image(8, 8), "错误: 请提供 base_url")
         try:
-            client = UniversalAPIClient(base_url, api_key, timeout=timeout, max_retries=2)
+            client = UniversalAPIClient(base_url, api_key, timeout=timeout, max_retries=2,
+                                        debug=(debug_log == "开启"))
             _validate_model(model, base_url)
             # aspect_ratio 非「自动」时覆盖 size（映射到最接近的宽高组合）
             effective_size = self._AR_SIZE.get(aspect_ratio, size) if aspect_ratio != "自动" else size
-            extra = {}
+            explicit = {}
             if seed is not None and seed >= 0:
-                extra["seed"] = seed  # 端点支持种子控制时生效（透传）
+                explicit["seed"] = seed  # 端点支持种子控制时生效（透传）
+            extra = UniversalAPIClient.merge_extra(extra_json, explicit)
             resp = client.generate_image(model=model, prompt=prompt, n=n,
                                          size=effective_size, **extra)
             b64_list = client.parse_image_b64(resp)
@@ -422,6 +482,9 @@ class LK_Universal_ImageEdit:
             "n": ("INT", {"default": 1, "min": 1, "max": 4}),
             "size": (["1024x1024", "1792x1024", "1024x1792"], {"default": "1024x1024"}),
             "seed": ("INT", {"default": -1, "min": -1, "max": 2147483647}),
+            "extra_json": ("STRING", {"multiline": True, "default": "",
+                                      "placeholder": '自定义参数 JSON，合并进请求体。例：{"input_fidelity": "high"}'}),
+            "debug_log": (["关闭", "开启"], {"default": "关闭"}),
             "timeout": ("INT", {"default": 180, "min": 10, "max": 600, "step": 10}),
         }}
 
@@ -431,20 +494,22 @@ class LK_Universal_ImageEdit:
     CATEGORY = "LK_Studio/通用 API/图像"
 
     def edit(self, image, prompt, model, base_url, api_key, mask=None, reference_images=None,
-             n=1, size="1024x1024", seed=-1, timeout=180):
+             n=1, size="1024x1024", seed=-1, extra_json="", debug_log="关闭", timeout=180):
         if not base_url:
             return (create_empty_image(8, 8), "错误: 请提供 base_url")
         try:
-            client = UniversalAPIClient(base_url, api_key, timeout=timeout, max_retries=2)
+            client = UniversalAPIClient(base_url, api_key, timeout=timeout, max_retries=2,
+                                        debug=(debug_log == "开启"))
             _validate_model(model, base_url)
             img_b64 = _images_to_b64(image, max_count=1)
             # 多参考图：主图 + 参考图合并透传（上限 4，NanoBananaMulti 场景）
             ref_b64 = _images_to_b64(reference_images, max_count=3) if reference_images is not None else []
             all_b64 = (img_b64 + ref_b64)[:4]
             mask_b64 = _images_to_b64(mask, max_count=1)[0] if mask is not None else None
-            extra = {}
+            explicit = {}
             if seed is not None and seed >= 0:
-                extra["seed"] = seed
+                explicit["seed"] = seed
+            extra = UniversalAPIClient.merge_extra(extra_json, explicit)
             resp = client.edit_image(model=model, prompt=prompt, image_b64=all_b64,
                                      mask_b64=mask_b64, n=n, size=size, **extra)
             b64_list = client.parse_image_b64(resp)
@@ -482,6 +547,9 @@ class LK_Universal_VideoGen:
             "duration": ("FLOAT", {"default": 5.0, "min": 1.0, "max": 60.0, "step": 1.0}),
             "aspect_ratio": (["16:9", "9:16", "1:1"], {"default": "16:9"}),
             "resolution": (["自动", "480p", "720p", "1080p"], {"default": "自动"}),
+            "extra_json": ("STRING", {"multiline": True, "default": "",
+                                      "placeholder": '自定义参数 JSON，合并进请求体。例：{"fps": 24, "camera_fixed": true}'}),
+            "debug_log": (["关闭", "开启"], {"default": "关闭"}),
             "timeout": ("INT", {"default": 300, "min": 30, "max": 1200, "step": 30}),
         }}
 
@@ -491,11 +559,13 @@ class LK_Universal_VideoGen:
     CATEGORY = "LK_Studio/通用 API/视频"
 
     def generate(self, prompt, model, base_url, api_key, duration=5.0, aspect_ratio="16:9",
-                 image=None, last_frame=None, resolution="自动", timeout=300):
+                 image=None, last_frame=None, resolution="自动", extra_json="", debug_log="关闭",
+                 timeout=300):
         if not base_url:
             return ("错误: 请提供 base_url",)
         try:
-            client = UniversalAPIClient(base_url, api_key, timeout=timeout, max_retries=2)
+            client = UniversalAPIClient(base_url, api_key, timeout=timeout, max_retries=2,
+                                        debug=(debug_log == "开启"))
             _validate_model(model, base_url)
             extra = {}
             if image is not None:
@@ -510,6 +580,7 @@ class LK_Universal_VideoGen:
                     extra["last_frame"] = lf_b64[0]
             if resolution and resolution != "自动":
                 extra["resolution"] = resolution
+            extra = UniversalAPIClient.merge_extra(extra_json, extra)
             resp = client.generate_video(model=model, prompt=prompt, duration=duration,
                                          aspect_ratio=aspect_ratio, **extra)
             items = resp.get("data", []) if isinstance(resp, dict) else []
@@ -551,6 +622,7 @@ class LK_Universal_Vision:
             "task_preset": (["自由提问", "详细描述", "反推提示词", "提取文字", "翻译文字"], {"default": "自由提问"}),
             "temperature": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.1}),
             "max_tokens": ("INT", {"default": 2048, "min": 1, "max": 65536, "step": 256}),
+            **_SAMPLING_PARAMS,
             "timeout": ("INT", {"default": 120, "min": 10, "max": 600, "step": 10}),
         }}
 
@@ -568,11 +640,14 @@ class LK_Universal_Vision:
 
     def understand(self, prompt, model, base_url, api_key, image=None, history="",
                    system_instruction="", task_preset="自由提问", temperature=1.0,
-                   max_tokens=2048, timeout=120):
+                   max_tokens=2048, top_p=1.0, frequency_penalty=0.0, presence_penalty=0.0,
+                   stop_sequence="", json_mode="自动", seed=-1, extra_json="",
+                   stream_output="关闭", debug_log="关闭", timeout=120):
         if not base_url:
             return ("错误: 请提供 base_url", history)
         try:
-            client = UniversalAPIClient(base_url, api_key, timeout=timeout, max_retries=3)
+            client = UniversalAPIClient(base_url, api_key, timeout=timeout, max_retries=3,
+                                        debug=(debug_log == "开启"))
             _validate_model(model, base_url)
             messages = []
             if system_instruction:
@@ -588,8 +663,15 @@ class LK_Universal_Vision:
             else:
                 messages.append({"role": "user", "content": effective_prompt})
 
+            extra_params = UniversalAPIClient.merge_extra(extra_json,
+                                                          _sampling_kwargs(
+                                                              top_p=top_p, frequency_penalty=frequency_penalty,
+                                                              presence_penalty=presence_penalty,
+                                                              stop_sequence=stop_sequence,
+                                                              json_mode=json_mode, seed=seed))
             resp = client.chat_completion(model=model, messages=messages,
-                                          temperature=temperature, max_tokens=max_tokens)
+                                          temperature=temperature, max_tokens=max_tokens,
+                                          **extra_params)
             reply = client.parse_chat_text(resp)
             messages.append({"role": "assistant", "content": reply})
             return (reply, _save_history(messages))
