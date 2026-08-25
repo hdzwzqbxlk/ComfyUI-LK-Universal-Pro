@@ -1,14 +1,11 @@
 # ComfyUI-LK-Universal-Pro 依赖
-# Gemini API 深度集成插件
-
-# Google Gemini API 客户端
-google-genai>=1.0.0
+# Gemini API 深度集成 + 通用 OpenAI 兼容 API 插件
 
 # 图像处理
 Pillow>=9.0.0
 numpy>=1.21.0
 
-# HTTP 请求
+# HTTP 请求（Gemini 与通用 OpenAI 兼容客户端均基于 requests）
 requests>=2.25.0
 
 # PyTorch (ComfyUI 已包含，此处仅作文档说明)
@@ -16,3 +13,6 @@ requests>=2.25.0
 
 # 可选依赖 - 视频处理
 # opencv-python>=4.5.0
+
+# 注意：原 google-genai 依赖已移除，本插件直接基于官方 REST API 实现，
+# 不依赖任何厂商专属 SDK，从而可对接任意 OpenAI 兼容自定义端点。
