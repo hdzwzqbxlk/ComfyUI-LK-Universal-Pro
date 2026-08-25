@@ -8,7 +8,7 @@
 import requests
 import json
 import time
-from typing import Optional, Dict, Any, List, Union
+from typing import Optional, Dict, Any, List, Union, Tuple
 
 
 class UniversalAPIError(Exception):
@@ -31,7 +31,8 @@ class UniversalAPIClient:
 
     def __init__(self, base_url: str, api_key: str = "", timeout: int = 120,
                  max_retries: int = 3, retry_delay: float = 2.0,
-                 fallback_base_url: str = "", fallback_api_key: str = ""):
+                 fallback_base_url: str = "", fallback_api_key: str = "",
+                 debug: bool = False):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key or ""
         self.timeout = timeout
@@ -39,6 +40,7 @@ class UniversalAPIClient:
         self.retry_delay = retry_delay
         self.fallback_base_url = fallback_base_url.rstrip("/") if fallback_base_url else ""
         self.fallback_api_key = fallback_api_key or ""
+        self.debug = debug
         self.session = requests.Session()
         headers = {"Content-Type": "application/json"}
         if self.api_key:
@@ -46,6 +48,29 @@ class UniversalAPIClient:
         self.session.headers.update(headers)
         # 备用端点会话（headers 可能不同）
         self._fallback_session = None
+
+    def _debug_log(self, msg: str):
+        if self.debug:
+            print(f"[LK-Universal][DEBUG] {msg}")
+
+    @staticmethod
+    def merge_extra(extra_json_str: str, explicit: dict = None) -> dict:
+        """解析用户自定义参数 JSON 并合并显式参数（显式优先）。
+
+        extra_json 示例：{"frequency_penalty": 0.5, "user": "lk", "top_k": 40}
+        非法 JSON 返回 {}（不抛错，容错优先）。
+        """
+        merged = {}
+        if extra_json_str:
+            try:
+                parsed = json.loads(extra_json_str)
+                if isinstance(parsed, dict):
+                    merged.update(parsed)
+            except Exception:
+                print(f"[LK-Universal] ⚠️ extra_json 不是合法 JSON 对象，已忽略: {extra_json_str[:100]}")
+        if explicit:
+            merged.update(explicit)
+        return merged
 
     def _get_fallback_session(self):
         if self._fallback_session is None:
@@ -146,12 +171,13 @@ class UniversalAPIClient:
     # ---- 对话 / 补全 -------------------------------------------------------
     def chat_completion(self, model: str, messages: List[dict],
                         temperature: float = 1.0, max_tokens: int = 2048,
-                        top_p: float = 1.0, **extra) -> dict:
+                        top_p: float = 1.0, stream: bool = False, **extra) -> Union[dict, Any]:
         """标准 chat/completions 调用。
 
         messages 元素形如 {"role": "user"/"system"/"assistant",
                             "content": str | [ {"type":"text"/"image_url", ...} ]}
         多模态图片以 image_url(data:image/png;base64,...) 形式注入 content 数组。
+        stream=True 时返回原始 response（SSE 流，由调用方消费）。
         """
         payload = {
             "model": model,
@@ -160,11 +186,65 @@ class UniversalAPIClient:
             "max_tokens": max_tokens,
             "top_p": top_p,
         }
-        # 仅保留有效可选参数
+        # 仅保留有效可选参数（含 extra_json 透传的自定义参数）
         for k, v in extra.items():
             if v is not None:
                 payload[k] = v
+        if stream:
+            return self._request_stream("/chat/completions", payload)
+        self._debug_log(f"chat/completions payload keys: {sorted(payload.keys())}")
         return self._request("POST", "/chat/completions", json_body=payload)
+
+    def _request_stream(self, endpoint: str, payload: dict):
+        """发起 SSE 流式请求，返回原始 response（iter_content 消费）。
+
+        流式请求不做重试/故障转移（避免重复生成），失败直接抛错。
+        """
+        url = f"{self.base_url}/{endpoint.lstrip('/')}"
+        body = dict(payload)
+        body["stream"] = True
+        resp = self.session.post(url, json=body, timeout=self.timeout, stream=True)
+        if resp.status_code >= 400:
+            try:
+                msg = resp.json().get("error", {})
+                if isinstance(msg, dict):
+                    msg = msg.get("message", str(resp.text[:300]))
+            except Exception:
+                msg = resp.text[:300]
+            raise UniversalAPIError(f"API 错误 {resp.status_code}: {msg}",
+                                    status_code=resp.status_code)
+        resp.raise_for_status()
+        return resp
+
+    @staticmethod
+    def consume_sse_stream(response) -> Tuple[str, str]:
+        """消费 OpenAI SSE 流，返回 (完整文本, 思考过程)。
+
+        兼容 reasoning_content（DeepSeek-R1 风格）与普通 delta.content。
+        """
+        text_parts = []
+        reasoning_parts = []
+        for line in response.iter_lines(decode_unicode=True):
+            if not line or not line.startswith("data:"):
+                continue
+            data_str = line[len("data:"):].strip()
+            if data_str == "[DONE]":
+                break
+            try:
+                chunk = json.loads(data_str)
+            except Exception:
+                continue
+            choices = chunk.get("choices") or []
+            if not choices:
+                continue
+            delta = choices[0].get("delta", {}) or {}
+            rc = delta.get("reasoning_content")
+            if rc:
+                reasoning_parts.append(rc)
+            c = delta.get("content")
+            if c:
+                text_parts.append(c)
+        return ("".join(text_parts), "".join(reasoning_parts))
 
     # ---- 图像生成（兼容端点支持时）----------------------------------------
     def generate_image(self, model: str, prompt: str, n: int = 1,
