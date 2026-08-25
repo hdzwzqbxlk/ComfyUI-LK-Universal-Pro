@@ -2,6 +2,29 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
+## [2.4.0] - 2026-08-25
+
+### ✨ 重构：通用 API 节点按 6 大类铺满（对标 Gemini 颗粒度）
+
+将原本 4 个「通用 API」节点扩充为 **15 个**，覆盖 文本 / 图像 / 视频 / 视觉 / 高级 / 工具 六大类，缩小与参考插件的覆盖差距。
+
+- **新增节点（11 个）**
+  - 工具：`LK_Universal_HealthCheck`（端点健康检查）、`LK_Universal_ModelCompare`（主备端点模型对比）
+  - 文本：`LK_Universal_TextGen`（单轮文生文）、`LK_Universal_Session`（会话/历史管理）
+  - 图像：`LK_Universal_ImageGen`（文生图）、`LK_Universal_ImageEdit`（图生图/编辑）
+  - 视频：`LK_Universal_VideoGen`（文生视频）
+  - 视觉：`LK_Universal_Vision`（多图视觉理解，与纯文本 Chat 分离）
+  - 高级：`LK_Universal_ToolUse`（Function Calling）、`LK_Universal_BatchChat`（批量对话）、`LK_Universal_TokenEstimate`（Token 预算估算）
+- **扩展 `utils/api_client.py`**：`UniversalAPIClient` 新增 `edit_image`（/images/edits）、`generate_video`（/videos/generations）、`parse_tool_calls`、`estimate_tokens` 方法
+- **复用**：图像转换沿用 `utils/image_utils` 的 `pil_to_tensor` / `base64_to_pil`，不重复造轮子
+- 版本号 2.3.1 → 2.4.0（README 徽章 / __init__ 同步）
+
+### 🔧 变更
+- `LK_Universal_Chat` 收敛为纯文本多轮对话；多模态视觉能力拆分至 `LK_Universal_Vision`
+- 所有节点兼容既有 Smart 故障转移与全局模型缓存，未破坏现有工作流
+
+---
+
 ## [2.3.0] - 2026-08-24
 
 ### 🌐 新增：通用 API 兼容层（Universal API）

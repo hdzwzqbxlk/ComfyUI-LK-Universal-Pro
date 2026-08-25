@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/Version-2.2.0-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-2.4.0-blue?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge)
 ![ComfyUI](https://img.shields.io/badge/ComfyUI-Compatible-orange?style=for-the-badge)
@@ -161,14 +161,25 @@ LK_Studio/
 
 ### 🌐 通用 API 节点（适配任意 OpenAI 兼容自定义接口）
 
-除 Gemini 专属节点外，本插件内置一套**通用 API 节点**，可对接任意遵循 OpenAI 协议的端点（OpenAI / Ollama / OpenRouter / DeepSeek / 火山方舟 / 硅基流动 / 任意自定义 URL）。
+除 Gemini 专属节点外，本插件内置一套**通用 API 节点**，可对接任意遵循 OpenAI 协议的端点（OpenAI / Ollama / OpenRouter / DeepSeek / 火山方舟 / 硅基流动 / 任意自定义 URL）。节点按 **6 大类** 组织，颗粒度对标 Gemini 系列：
 
 | 类别 | 节点类名 | 显示名称 | 功能描述 |
 | :--- | :--- | :--- | :--- |
-| **工具** | `LK_Universal_APIConfig` | 🌐 LK 通用 API 配置 | 选择厂商预设或自定义 base_url，统一输出连接参数。 |
+| **工具** | `LK_Universal_APIConfig` | 🌐 LK 通用 API 配置 | 选择厂商预设或自定义 base_url，统一输出连接参数（含备用端点）。 |
 | | `LK_Universal_ModelFetcher` | 📡 LK 通用 模型获取 | **自动拉取**指定端点的模型列表并写入缓存。 |
-| **文本** | `LK_Universal_Chat` | 💬 LK 通用 对话 | 文本 + 多模态（图像）对话，模型下拉框读取缓存。 |
-| **高级** | `LK_Universal_Structured` | 📋 LK 通用 结构化输出 | 强制 JSON 输出的结构化生成。 |
+| | `LK_Universal_HealthCheck` | 🩺 LK 通用 端点健康检查 | 拉取 /models 并测往返延迟，验证端点可达 + 鉴权有效。 |
+| | `LK_Universal_ModelCompare` | 🔍 LK 通用 模型对比 | 对比主/备端点模型集合（仅主/仅备/共有），辅助故障转移选型。 |
+| **文本** | `LK_Universal_TextGen` | 📝 LK 通用 文本生成 | 单轮文生文，最轻量入口。 |
+| | `LK_Universal_Chat` | 💬 LK 通用 多轮对话 | 纯文本多轮对话，链式传递历史 JSON。 |
+| | `LK_Universal_Session` | 🧵 LK 通用 会话管理 | 合并/裁剪/清空历史 JSON，编排多轮上下文。 |
+| **图像** | `LK_Universal_ImageGen` | 🎨 LK 通用 图像生成 | 文生图（/images/generations）。 |
+| | `LK_Universal_ImageEdit` | ✏️ LK 通用 图像编辑 | 图生图/编辑（/images/edits，可选遮罩）。 |
+| **视频** | `LK_Universal_VideoGen` | 🎬 LK 通用 视频生成 | 文生视频（/videos/generations，端点支持时）。 |
+| **视觉** | `LK_Universal_Vision` | 👁️ LK 通用 视觉理解 | 多图 + 文本，专注图文对话（支持历史）。 |
+| **高级** | `LK_Universal_Structured` | 📋 LK 通用 结构化输出 | 强制 JSON 输出（response_format，自动降级）。 |
+| | `LK_Universal_ToolUse` | 🛠️ LK 通用 工具调用 | Function Calling：传入工具定义，返回模型调用清单。 |
+| | `LK_Universal_BatchChat` | 📚 LK 通用 批量对话 | 一次提交多组提示词（按行），逐条调用汇总。 |
+| | `LK_Universal_TokenEstimate` | 🧮 LK 通用 Token 估算 | 按系统/提示/历史/预留输出粗略估算，提前判断超限。 |
 
 #### 典型工作流
 
