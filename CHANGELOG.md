@@ -2,6 +2,17 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
+## [2.5.1] - 2026-08-25
+
+### ✨ 增强：原 Gemini 优秀功能集成进通用节点（不加节点，只增强）
+
+- **ImageGen**：新增 `aspect_ratio`（自动/1:1/16:9/9:16/4:3/3:4，映射到最接近尺寸）与 `seed`（-1 随机，≥0 透传端点做种子控制）
+- **ImageEdit**：新增 `reference_images` 多参考图输入（batch，主图+参考图上限 4，覆盖 NanoBananaMulti 多图合成场景）与 `seed`
+- **VideoGen**：新增 `resolution`（480p/720p/1080p）与 `last_frame` 尾帧输入（端点支持首尾帧插值时生效）
+- **Vision**：新增 `task_preset` 任务预设（自由提问/详细描述/**反推提示词**/提取文字/翻译文字），覆盖原 ImageToPrompt 场景
+- **Chat**：新增可选 `file_path` 文本文件注入（读取 txt/md/py/json 等内容作为上下文，覆盖 DocumentProcess 文本处理场景）
+- 版本 2.5.0 → 2.5.1
+
 ## [2.5.0] - 2026-08-25
 
 ### ♻️ 重构：移除 Gemini 专项体系，统一为通用节点并合并精简
