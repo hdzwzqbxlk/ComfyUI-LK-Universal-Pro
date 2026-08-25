@@ -315,6 +315,51 @@ class UniversalAPIClient:
                 payload[k] = v
         return self._request("POST", "/images/generations", json_body=payload, allow_fallback=False)
 
+    # ---- 图像编辑（兼容端点支持时）----------------------------------------
+    def edit_image(self, model: str, prompt: str, image_b64: List[str] = None,
+                   mask_b64: str = None, n: int = 1, size: str = "1024x1024",
+                   response_format: str = "b64_json", **extra) -> dict:
+        """/images/edits：以图 + 提示词编辑/重绘。
+
+        image_b64: 待编辑图像 base64 列表（部分端点只取第一张）。
+        mask_b64 : 可选遮罩，白色区域被重绘（DALL·E 系列语义）。
+        """
+        payload = {
+            "model": model,
+            "prompt": prompt,
+            "n": n,
+            "size": size,
+            "response_format": response_format,
+        }
+        if image_b64:
+            payload["image"] = image_b64[0]
+        if mask_b64:
+            payload["mask"] = mask_b64
+        for k, v in extra.items():
+            if v is not None:
+                payload[k] = v
+        return self._request("POST", "/images/edits", json_body=payload, allow_fallback=False)
+
+    # ---- 视频生成（兼容端点支持时）----------------------------------------
+    def generate_video(self, model: str, prompt: str, duration: float = 5.0,
+                       aspect_ratio: str = "16:9", n: int = 1, **extra) -> dict:
+        """/videos/generations：文生视频（OpenAI 兼容扩展端点）。
+
+        返回结构兼容 {"data":[{"b64_json":...} | {"url":...}]}。
+        不支持的端点会抛 UniversalAPIError（调用方提示「该端点未开放视频能力」）。
+        """
+        payload = {
+            "model": model,
+            "prompt": prompt,
+            "duration": duration,
+            "aspect_ratio": aspect_ratio,
+            "n": n,
+        }
+        for k, v in extra.items():
+            if v is not None:
+                payload[k] = v
+        return self._request("POST", "/videos/generations", json_body=payload, allow_fallback=False)
+
     # ---- 响应解析 ----------------------------------------------------------
     @staticmethod
     def parse_chat_text(response: dict) -> str:
@@ -360,3 +405,45 @@ class UniversalAPIClient:
                 })
         content.append({"type": "text", "text": text})
         return content
+
+    @staticmethod
+    def parse_tool_calls(response: dict) -> List[dict]:
+        """提取 assistant message 的 tool_calls（function calling）。
+
+        返回 [{ "id", "name", "arguments"(已解析 dict) }, ...]。
+        无 tool_calls 时返回空列表。
+        """
+        out = []
+        try:
+            msg = response["choices"][0]["message"]
+            for tc in msg.get("tool_calls", []) or []:
+                if tc.get("type") != "function":
+                    continue
+                fn = tc.get("function", {})
+                raw_args = fn.get("arguments", "") or ""
+                try:
+                    args = json.loads(raw_args) if raw_args.strip() else {}
+                except Exception:
+                    args = {"__raw__": raw_args}
+                out.append({
+                    "id": tc.get("id", ""),
+                    "name": fn.get("name", ""),
+                    "arguments": args,
+                })
+        except Exception:
+            pass
+        return out
+
+    @staticmethod
+    def estimate_tokens(text: str) -> int:
+        """粗略 token 估算：中文按字、英文按词，约 1 token/词。
+
+        仅用于「单次请求预算」提示，非精确计数。
+        """
+        if not text:
+            return 0
+        # CJK 字符每个约 1 token，其余按空白分词
+        cjk = sum(1 for ch in text if ord(ch) > 0x2E80)
+        non_cjk = len(text) - cjk
+        words = max(1, len(text.split()) - cjk) if non_cjk > 0 else 0
+        return cjk + words
