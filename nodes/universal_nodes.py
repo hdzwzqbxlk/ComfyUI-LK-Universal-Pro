@@ -293,6 +293,7 @@ class LK_Universal_Chat:
         }, "optional": {
             "history": ("STRING", {"multiline": True, "default": "", "placeholder": "多轮历史 JSON（可选，留空=单轮）"}),
             "system_instruction": ("STRING", {"multiline": True, "default": ""}),
+            "file_path": ("STRING", {"default": "", "placeholder": "文本文件路径（可选：txt/md/py/json 等，内容注入为上下文）"}),
             "temperature": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.1}),
             "max_tokens": ("INT", {"default": 2048, "min": 1, "max": 65536, "step": 256}),
             "timeout": ("INT", {"default": 120, "min": 10, "max": 600, "step": 10}),
@@ -306,7 +307,8 @@ class LK_Universal_Chat:
     CATEGORY = "LK_Studio/通用 API/文本"
 
     def chat(self, prompt, model, base_url, api_key, history="", system_instruction="",
-             temperature=1.0, max_tokens=2048, timeout=120, fallback_base_url="", fallback_api_key=""):
+             file_path="", temperature=1.0, max_tokens=2048, timeout=120,
+             fallback_base_url="", fallback_api_key=""):
         if not base_url:
             return ("错误: 请提供 base_url", "", history)
         try:
@@ -318,7 +320,19 @@ class LK_Universal_Chat:
             if system_instruction:
                 messages.append({"role": "system", "content": system_instruction})
             messages.extend(_load_history(history))
-            messages.append({"role": "user", "content": prompt})
+
+            effective_prompt = prompt
+            # 文件注入（DocumentProcess 文本场景）：读取文本文件作为上下文
+            if file_path:
+                try:
+                    with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+                        content = f.read()
+                    effective_prompt = (f"以下是文件「{os.path.basename(file_path)}」的全文内容：\n\n"
+                                        f"{content}\n\n---\n\n用户指令：{prompt or '请处理上述文件内容。'}")
+                except OSError as e:
+                    return (f"错误: 无法读取文件 {file_path}: {str(e)}", "", history)
+
+            messages.append({"role": "user", "content": effective_prompt})
 
             resp = client.chat_completion(model=model, messages=messages,
                                           temperature=temperature, max_tokens=max_tokens)
@@ -352,6 +366,8 @@ class LK_Universal_ImageGen:
         }, "optional": {
             "n": ("INT", {"default": 1, "min": 1, "max": 4}),
             "size": (["1024x1024", "1792x1024", "1024x1792", "512x512", "256x256"], {"default": "1024x1024"}),
+            "aspect_ratio": (["自动", "1:1", "16:9", "9:16", "4:3", "3:4"], {"default": "自动"}),
+            "seed": ("INT", {"default": -1, "min": -1, "max": 2147483647}),
             "timeout": ("INT", {"default": 180, "min": 10, "max": 600, "step": 10}),
         }}
 
@@ -360,17 +376,28 @@ class LK_Universal_ImageGen:
     FUNCTION = "generate"
     CATEGORY = "LK_Studio/通用 API/图像"
 
-    def generate(self, prompt, model, base_url, api_key, n=1, size="1024x1024", timeout=180):
+    _AR_SIZE = {"1:1": "1024x1024", "16:9": "1792x1024", "9:16": "1024x1792",
+                "4:3": "1152x864", "3:4": "864x1152"}
+
+    def generate(self, prompt, model, base_url, api_key, n=1, size="1024x1024",
+                 aspect_ratio="自动", seed=-1, timeout=180):
         if not base_url:
             return (create_empty_image(8, 8), "错误: 请提供 base_url")
         try:
             client = UniversalAPIClient(base_url, api_key, timeout=timeout, max_retries=2)
             _validate_model(model, base_url)
-            resp = client.generate_image(model=model, prompt=prompt, n=n, size=size)
+            # aspect_ratio 非「自动」时覆盖 size（映射到最接近的宽高组合）
+            effective_size = self._AR_SIZE.get(aspect_ratio, size) if aspect_ratio != "自动" else size
+            extra = {}
+            if seed is not None and seed >= 0:
+                extra["seed"] = seed  # 端点支持种子控制时生效（透传）
+            resp = client.generate_image(model=model, prompt=prompt, n=n,
+                                         size=effective_size, **extra)
             b64_list = client.parse_image_b64(resp)
+            note = f"（seed={seed}）" if seed >= 0 else ""
             if not b64_list:
                 return (create_empty_image(8, 8), "端点未返回图像数据（可能不支持 /images/generations）")
-            return (_b64_to_image_tensor(b64_list), f"已生成 {len(b64_list)} 张")
+            return (_b64_to_image_tensor(b64_list), f"已生成 {len(b64_list)} 张 {note}")
         except UniversalAPIError as e:
             return (create_empty_image(8, 8), f"API 错误: {str(e)}")
         except Exception as e:
@@ -391,8 +418,10 @@ class LK_Universal_ImageEdit:
             "api_key": ("STRING", {"default": ""}),
         }, "optional": {
             "mask": ("IMAGE",),
+            "reference_images": ("IMAGE",),  # 多参考图（batch），端点支持多图合成时生效
             "n": ("INT", {"default": 1, "min": 1, "max": 4}),
             "size": (["1024x1024", "1792x1024", "1024x1792"], {"default": "1024x1024"}),
+            "seed": ("INT", {"default": -1, "min": -1, "max": 2147483647}),
             "timeout": ("INT", {"default": 180, "min": 10, "max": 600, "step": 10}),
         }}
 
@@ -401,16 +430,23 @@ class LK_Universal_ImageEdit:
     FUNCTION = "edit"
     CATEGORY = "LK_Studio/通用 API/图像"
 
-    def edit(self, image, prompt, model, base_url, api_key, mask=None, n=1, size="1024x1024", timeout=180):
+    def edit(self, image, prompt, model, base_url, api_key, mask=None, reference_images=None,
+             n=1, size="1024x1024", seed=-1, timeout=180):
         if not base_url:
             return (create_empty_image(8, 8), "错误: 请提供 base_url")
         try:
             client = UniversalAPIClient(base_url, api_key, timeout=timeout, max_retries=2)
             _validate_model(model, base_url)
             img_b64 = _images_to_b64(image, max_count=1)
+            # 多参考图：主图 + 参考图合并透传（上限 4，NanoBananaMulti 场景）
+            ref_b64 = _images_to_b64(reference_images, max_count=3) if reference_images is not None else []
+            all_b64 = (img_b64 + ref_b64)[:4]
             mask_b64 = _images_to_b64(mask, max_count=1)[0] if mask is not None else None
-            resp = client.edit_image(model=model, prompt=prompt, image_b64=img_b64,
-                                     mask_b64=mask_b64, n=n, size=size)
+            extra = {}
+            if seed is not None and seed >= 0:
+                extra["seed"] = seed
+            resp = client.edit_image(model=model, prompt=prompt, image_b64=all_b64,
+                                     mask_b64=mask_b64, n=n, size=size, **extra)
             b64_list = client.parse_image_b64(resp)
             if not b64_list:
                 return (create_empty_image(8, 8), "端点未返回图像数据（可能不支持 /images/edits）")
@@ -442,8 +478,10 @@ class LK_Universal_VideoGen:
             "api_key": ("STRING", {"default": ""}),
         }, "optional": {
             "image": ("IMAGE",),
+            "last_frame": ("IMAGE",),  # 尾帧（端点支持首尾帧插值时生效，如 Gemini lastFrame）
             "duration": ("FLOAT", {"default": 5.0, "min": 1.0, "max": 60.0, "step": 1.0}),
             "aspect_ratio": (["16:9", "9:16", "1:1"], {"default": "16:9"}),
+            "resolution": (["自动", "480p", "720p", "1080p"], {"default": "自动"}),
             "timeout": ("INT", {"default": 300, "min": 30, "max": 1200, "step": 30}),
         }}
 
@@ -453,7 +491,7 @@ class LK_Universal_VideoGen:
     CATEGORY = "LK_Studio/通用 API/视频"
 
     def generate(self, prompt, model, base_url, api_key, duration=5.0, aspect_ratio="16:9",
-                 image=None, timeout=300):
+                 image=None, last_frame=None, resolution="自动", timeout=300):
         if not base_url:
             return ("错误: 请提供 base_url",)
         try:
@@ -463,8 +501,15 @@ class LK_Universal_VideoGen:
             if image is not None:
                 img_b64 = _images_to_b64(image, max_count=1)
                 if img_b64:
-                    # 透传首帧/参考图，端点支持图生视频时生效（如 Gemini firstFrameImage）
-                    extra["image"] = img_b64[ 0]
+                    # 透传首帧/参考图，端点支持图生视频时生效（如 first_frame）
+                    extra["image"] = img_b64[0]
+            if last_frame is not None:
+                lf_b64 = _images_to_b64(last_frame, max_count=1)
+                if lf_b64:
+                    # 尾帧：端点支持首尾帧插值时生效
+                    extra["last_frame"] = lf_b64[0]
+            if resolution and resolution != "自动":
+                extra["resolution"] = resolution
             resp = client.generate_video(model=model, prompt=prompt, duration=duration,
                                          aspect_ratio=aspect_ratio, **extra)
             items = resp.get("data", []) if isinstance(resp, dict) else []
@@ -503,10 +548,18 @@ class LK_Universal_Vision:
             "image": ("IMAGE",),
             "history": ("STRING", {"multiline": True, "default": "", "placeholder": "多轮历史 JSON（可选）"}),
             "system_instruction": ("STRING", {"multiline": True, "default": ""}),
+            "task_preset": (["自由提问", "详细描述", "反推提示词", "提取文字", "翻译文字"], {"default": "自由提问"}),
             "temperature": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.1}),
             "max_tokens": ("INT", {"default": 2048, "min": 1, "max": 65536, "step": 256}),
             "timeout": ("INT", {"default": 120, "min": 10, "max": 600, "step": 10}),
         }}
+
+    _PRESET_PROMPTS = {
+        "反推提示词": "分析这张图像，反向推导出生成它所用的英文 AI 绘画提示词（prompt）。要求：主体、风格、构图、光照、画质词齐全，直接输出提示词本身，不要解释。",
+        "详细描述": "请详细描述这张图像的内容、风格与细节。",
+        "提取文字": "提取图像中出现的全部文字，按原始排版逐行输出，不要添加解释。",
+        "翻译文字": "提取图像中的文字并翻译为中文，按行输出：原文 → 译文。",
+    }
 
     RETURN_TYPES = ("STRING", "STRING")
     RETURN_NAMES = ("回复", "更新历史")
@@ -514,7 +567,8 @@ class LK_Universal_Vision:
     CATEGORY = "LK_Studio/通用 API/视觉"
 
     def understand(self, prompt, model, base_url, api_key, image=None, history="",
-                   system_instruction="", temperature=1.0, max_tokens=2048, timeout=120):
+                   system_instruction="", task_preset="自由提问", temperature=1.0,
+                   max_tokens=2048, timeout=120):
         if not base_url:
             return ("错误: 请提供 base_url", history)
         try:
@@ -525,11 +579,14 @@ class LK_Universal_Vision:
                 messages.append({"role": "system", "content": system_instruction})
             messages.extend(_load_history(history))
 
+            # 任务预设：非「自由提问」时用预设指令覆盖 prompt（ImageToPrompt 场景）
+            effective_prompt = self._PRESET_PROMPTS.get(task_preset, prompt) if task_preset != "自由提问" else prompt
+
             images_b64 = _images_to_b64(image, max_count=8)
             if images_b64:
-                messages.append({"role": "user", "content": client.build_vision_content(prompt, images_b64)})
+                messages.append({"role": "user", "content": client.build_vision_content(effective_prompt, images_b64)})
             else:
-                messages.append({"role": "user", "content": prompt})
+                messages.append({"role": "user", "content": effective_prompt})
 
             resp = client.chat_completion(model=model, messages=messages,
                                           temperature=temperature, max_tokens=max_tokens)
